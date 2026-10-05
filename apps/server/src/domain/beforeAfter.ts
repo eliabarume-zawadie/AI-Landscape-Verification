@@ -42,7 +42,7 @@ export function deriveStageInputs(args: {
   thresholds: Thresholds;
   /** Areas verified as mutually distinct by the vision model (see pairStage). */
   verifiedDistinctAreas: number;
-}): Required<StageInputs> {
+}): Required<StageInputs> & { establishedBy: Map<string, string[]> } {
   const { thresholds: t } = args;
   const byId = new Map(args.images.map((i) => [i.imageId, i]));
   const confirmed = args.pairs.filter((p) => isConfirmedPair(p, t.pairing));
@@ -54,6 +54,7 @@ export function deriveStageInputs(args: {
   }
 
   const beforeAfterEstablished = new Set<string>();
+  const establishedBy = new Map<string, string[]>();
   const pairCounterEvidence: { service: string; item: EvidenceItem }[] = [];
   for (const service of args.services) {
     const rules = resolveServiceRules(args.registry, args.profile, service);
@@ -68,7 +69,10 @@ export function deriveStageInputs(args: {
         const afterSupports = after.observations.some(
           (o) => o.service === service && o.polarity === "positive" && !insufficientAlone.has(o.evidenceType) && o.strength >= t.confidence_bands.medium,
         );
-        if (afterSupports) beforeAfterEstablished.add(service);
+        if (afterSupports) {
+          beforeAfterEstablished.add(service);
+          establishedBy.set(service, [...(establishedBy.get(service) ?? []), p.pairId]);
+        }
       } else if (change.direction !== "IMPROVED" && change.strength >= t.evidence.counter_evidence_min_strength) {
         pairCounterEvidence.push({
           service,
@@ -92,5 +96,6 @@ export function deriveStageInputs(args: {
     beforeAfterEstablished,
     distinctScenes: args.verifiedDistinctAreas,
     pairCounterEvidence,
+    establishedBy,
   };
 }

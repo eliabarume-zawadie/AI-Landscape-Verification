@@ -51,6 +51,11 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 - `GET /api/locations/:id/evidence` now also returns `pairs`: `status`, `beforeRef`/`afterRef` (+ image IDs), `sameAreaConfidence` (band), `notes`, `changes` (`service`, `direction`, `strength` band, `description`). Confirmed pairs first.
 - `GET /api/locations/:id/images` analysis now includes `stage`, `stageCertainty`, `analysisStatus`.
 
+### Phase 7
+
+- `GET /api/locations/:id/evidence` adds `bundle: { totalImages, entries: [{ imageId, ref, rank, reasons, services: [{ service, role }] }] }` and, per service, `bundle: [{ imageId, ref, roles }]`.
+- `GET /api/locations/:id/images?order=evidence` returns images strongest-evidence first; each item has `inBundle` and `analysis.evidenceRank`; `summary.inBundle`.
+
 ## Planned (PRD §76)
 
 | Method | Path | Phase |

@@ -1,7 +1,7 @@
 {
-  "version": "thresholds-v4",
+  "version": "thresholds-v5",
   "provisional": true,
-  "_note": "PROVISIONAL placeholders (IMPLEMENTATION_PLAN A7). Replace with values derived from golden-dataset evaluation before any rollout. v4 adds before/after pairing settings.",
+  "_note": "PROVISIONAL placeholders (IMPLEMENTATION_PLAN A7). Replace with values derived from golden-dataset evaluation before any rollout. v5 adds evidence bundle settings.",
   "confidence_bands": { "high": 0.85, "medium": 0.6 },
   "quality": {
     "min_usable_score": 0.5,
@@ -24,6 +24,7 @@
     "max_pair_calls": 60,
     "min_same_area_confidence": 0.8
   },
+  "bundle": { "max_images": 16, "per_service_supporting": 3 },
   "risk": { "medium_at": 0.3, "high_at": 0.6 },
   "metrics": { "min_sample_size": 30 }
 }

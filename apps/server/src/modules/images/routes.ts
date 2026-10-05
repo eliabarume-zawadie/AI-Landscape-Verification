@@ -2,13 +2,17 @@ import type { FastifyInstance } from "fastify";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { recordAudit } from "../../audit/audit";
-import { imageAnalysis, images, locations, processingRuns } from "../../db/schema";
+import { evidenceBundleItems, imageAnalysis, images, locations, processingRuns } from "../../db/schema";
 import { requireUser } from "../../http/authPlugin";
 import { openImage } from "../../pipeline/imageDecode";
 import type { AppContext } from "../../http/context";
 
 const listParams = z.object({ id: z.string().uuid() });
-const listQuery = z.object({ runId: z.string().uuid().optional() });
+const listQuery = z.object({
+  runId: z.string().uuid().optional(),
+  /** "upload" = submission order; "evidence" = strongest evidence first (PRD §23). */
+  order: z.enum(["upload", "evidence"]).default("upload"),
+});
 const contentParams = z.object({ id: z.string().uuid(), imageId: z.string().uuid() });
 const contentQuery = z.object({ variant: z.enum(["full", "thumb"]).default("full") });
 
@@ -64,15 +68,25 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
         stage: imageAnalysis.stage,
         stageCertainty: imageAnalysis.stageCertainty,
         analysisStatus: imageAnalysis.analysisStatus,
+        evidenceRank: imageAnalysis.evidenceRank,
       })
       .from(images)
       .leftJoin(imageAnalysis, and(eq(imageAnalysis.imageId, images.id), eq(imageAnalysis.runId, runId ?? images.id)))
       .where(eq(images.locationId, loc.id))
       .orderBy(asc(images.ordinal), asc(images.externalRef));
+    if (q.data.order === "evidence") {
+      rows.sort((a, b) => (a.evidenceRank ?? Number.MAX_SAFE_INTEGER) - (b.evidenceRank ?? Number.MAX_SAFE_INTEGER));
+    }
+    const bundled = new Set(
+      runId
+        ? (await ctx.db.select({ id: evidenceBundleItems.imageId }).from(evidenceBundleItems).where(eq(evidenceBundleItems.runId, runId))).map((r) => r.id)
+        : [],
+    );
 
     const items = rows.map(({ storageKey, ...r }) => ({
       ...r,
       contentAvailable: storageKey !== null && r.purgedAt === null,
+      inBundle: bundled.has(r.id),
       analysis:
         r.usable === null
           ? null
@@ -86,6 +100,7 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
               stage: r.stage,
               stageCertainty: r.stageCertainty,
               analysisStatus: r.analysisStatus,
+              evidenceRank: r.evidenceRank,
             },
     }));
     const analysed = items.filter((i) => i.analysis);
@@ -97,6 +112,7 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
         unusable: analysed.filter((i) => !i.analysis!.usable).length,
         uniqueClusters: new Set(analysed.map((i) => i.analysis!.duplicateGroup)).size,
         duplicates: analysed.filter((i) => !i.analysis!.isDuplicateRepresentative).length,
+        inBundle: items.filter((i) => i.inBundle).length,
       },
       items: items.map(
         ({
@@ -109,6 +125,7 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
           stage: _s,
           stageCertainty: _c,
           analysisStatus: _a,
+          evidenceRank: _e,
           ...rest
         }) => rest,
       ),

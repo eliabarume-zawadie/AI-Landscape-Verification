@@ -9,6 +9,7 @@ import { reachableErrorStatus, transitionLocation } from "../services/locationTr
 import type { JobContext, JobHandler } from "./jobHandler";
 import { JOB_TYPES, type ProcessLocationPayload } from "./jobTypes";
 import { runImageStage } from "./stages/imageStage";
+import { runBundleStage } from "./stages/bundleStage";
 import { runEvidenceStage, servicesToObserve } from "./stages/evidenceStage";
 import { runPairStage } from "./stages/pairStage";
 import { runVisionStage } from "./stages/visionStage";
@@ -109,13 +110,24 @@ export const processLocationHandler: JobHandler = {
     await runVisionStage(ctx, { locationId: loc.id, runId, services: observe, config, actor });
 
     // ---- Stage: before/after pairing and comparison (Phase 6)
-    const { stageInputs } = await runPairStage(ctx, { locationId: loc.id, runId, services: observe, config, profile, actor });
+    const pairing = await runPairStage(ctx, { locationId: loc.id, runId, services: observe, config, profile, actor });
     await transitionLocation(db, { locationId: loc.id, to: "EVIDENCE_BUILDING", actor, runId });
 
     // ---- Stage: service evidence (Phase 5), now with before/after and area coverage.
-    await runEvidenceStage(ctx, { locationId: loc.id, runId, services, config, profile, stage: stageInputs, actor });
+    const assessments = await runEvidenceStage(ctx, { locationId: loc.id, runId, services, config, profile, stage: pairing.stageInputs, actor });
 
-    // ---- Stages 7–8 (bundling, risk) plug in here.
+    // ---- Stage: evidence bundle (Phase 7)
+    await runBundleStage(ctx, {
+      locationId: loc.id,
+      runId,
+      assessments,
+      pairs: pairing.pairs,
+      establishedBy: pairing.establishedBy,
+      thresholds: config.thresholds,
+      actor,
+    });
+
+    // ---- Stage 8 (risk) plugs in here.
 
     await finishRun(ctx, {
       locationId: loc.id,

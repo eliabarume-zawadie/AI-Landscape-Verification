@@ -96,6 +96,20 @@ stages (metadata) → candidates (visual shortlist) → pair comparison (model) 
 
 Pair statuses: `CONFIRMED`, `NOT_SAME_AREA`, `NOT_COMPARABLE`, `LOW_CONFIDENCE`, `MALFORMED`, `REFUSED`. All evaluated pairs are stored and shown to reviewers.
 
+## Evidence bundle (implemented, Phase 7)
+
+Per service, in this order (each image listed once, with all its services and roles):
+
+| Priority | Content | Can the cap drop it? |
+|---|---|---|
+| 1 | Both images of every recorded contradiction | Never |
+| 2 | Counter-evidence ≥ `counter_evidence_min_strength` (one per duplicate cluster) | Never |
+| 3 | The confirmed before/after pair that established the service | Never |
+| 4 | Top `per_service_supporting` supporting images: one per cluster, round-robin across areas, never baseline or unusable | Yes |
+| 5 | One context image when the service has no support | Yes |
+
+All images also get an evidence rank for the "strongest first" view: bundle order, then quality/strength/pair/counter-evidence, duplicates after their representative, unusable last.
+
 ## Division of responsibility
 
 | Vision model (non-deterministic) | ALVIP code (deterministic, tested, versioned) |

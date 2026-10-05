@@ -60,7 +60,12 @@ export interface PairStageSummary {
 export async function runPairStage(
   ctx: JobContext,
   input: { locationId: string; runId: string; services: string[]; config: ActiveConfig; profile: ClientProfile; actor: Actor },
-): Promise<{ stageInputs: Required<StageInputs>; summary: PairStageSummary }> {
+): Promise<{
+  stageInputs: Required<StageInputs>;
+  summary: PairStageSummary;
+  pairs: EvaluatedPair[];
+  establishedBy: Map<string, string[]>;
+}> {
   const { db, env } = ctx;
   const t = input.config.thresholds;
   const provider = ctx.integrations.vision;
@@ -314,7 +319,7 @@ export async function runPairStage(
   }
 
   // 5. Engine inputs.
-  const stageInputs = deriveStageInputs({
+  const { establishedBy, ...stageInputs } = deriveStageInputs({
     images: evidenceImages,
     stages,
     pairs: evaluated,
@@ -357,6 +362,6 @@ export async function runPairStage(
     runId: input.runId,
     data: { ...summary, prompt: promptLabel(prompt), pairingThresholdsVersion: t.version },
   });
-  return { stageInputs, summary };
+  return { stageInputs, summary, pairs: evaluated, establishedBy };
 }
 

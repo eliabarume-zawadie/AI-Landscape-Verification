@@ -57,6 +57,13 @@
       "when": 1791200044086,
       "tag": "0007_before_after",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791202294719,
+      "tag": "0008_bundle",
+      "breakpoints": true
     }
   ]
 }

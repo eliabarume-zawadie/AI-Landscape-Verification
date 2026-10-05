@@ -327,6 +327,8 @@ export const imageAnalysis = pgTable(
     analysisStatus: text("analysis_status"),
     /** Model that actually answered (may differ from the configured one after a fallback). */
     servedModel: text("served_model"),
+    /** Position in the "all images, strongest evidence first" order (1 = most useful). */
+    evidenceRank: integer("evidence_rank"),
     /** Before/after stage from metadata only (BEFORE | AFTER | DURING | UNKNOWN). */
     stage: text("stage"),
     stageCertainty: text("stage_certainty"),
@@ -443,6 +445,23 @@ export const visionCache = pgTable("vision_cache", {
   costUsd: numeric("cost_usd", { precision: 12, scale: 6 }),
   createdAt: createdAt(),
 });
+
+/** The reviewer's evidence bundle for a run (PRD §20–22). One row per bundled image. */
+export const evidenceBundleItems = pgTable(
+  "evidence_bundle_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id").notNull().references(() => processingRuns.id),
+    imageId: uuid("image_id").notNull().references(() => images.id),
+    rank: integer("rank").notNull(),
+    /** CONTRADICTION | COUNTER_EVIDENCE | BEFORE_AFTER_PAIR | TOP_SUPPORT | CONTEXT_ONLY */
+    reasons: jsonb("reasons").notNull(),
+    /** [{ service, role }] — one image can serve several services. */
+    services: jsonb("services").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("evidence_bundle_items_run_image_uq").on(t.runId, t.imageId), index("evidence_bundle_items_run_rank_idx").on(t.runId, t.rank)],
+);
 
 // ---------------------------------------------------------------- queue
 export const verificationJobs = pgTable(

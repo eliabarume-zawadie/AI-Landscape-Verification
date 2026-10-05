@@ -2,7 +2,17 @@ import type { FastifyInstance } from "fastify";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { loadActiveConfig } from "../../config/configStore";
-import { contradictions, evidence, imagePairs, images, locations, processingRuns, serviceAssessments } from "../../db/schema";
+import {
+  contradictions,
+  evidence,
+  evidenceBundleItems,
+  imageAnalysis,
+  imagePairs,
+  images,
+  locations,
+  processingRuns,
+  serviceAssessments,
+} from "../../db/schema";
 import { band } from "../../domain/evidence";
 import type { ValidatedPairComparison } from "../../domain/observations";
 import { requireUser } from "../../http/authPlugin";
@@ -34,7 +44,7 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!run) return reply.code(404).send({ error: "NOT_FOUND" });
 
     const config = await loadActiveConfig(ctx.db);
-    const [assessments, items, conflicts, pairRows] = await Promise.all([
+    const [assessments, items, conflicts, pairRows, bundleRows] = await Promise.all([
       ctx.db.select().from(serviceAssessments).where(eq(serviceAssessments.runId, runId)).orderBy(asc(serviceAssessments.serviceCode)),
       ctx.db
         .select({
@@ -51,6 +61,18 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
         .where(eq(evidence.runId, runId)),
       ctx.db.select().from(contradictions).where(eq(contradictions.runId, runId)),
       ctx.db.select().from(imagePairs).where(eq(imagePairs.runId, runId)),
+      ctx.db
+        .select({
+          imageId: evidenceBundleItems.imageId,
+          ref: images.externalRef,
+          rank: evidenceBundleItems.rank,
+          reasons: evidenceBundleItems.reasons,
+          services: evidenceBundleItems.services,
+        })
+        .from(evidenceBundleItems)
+        .innerJoin(images, eq(images.id, evidenceBundleItems.imageId))
+        .where(eq(evidenceBundleItems.runId, runId))
+        .orderBy(asc(evidenceBundleItems.rank)),
     ]);
     const pairImageIds = [...new Set(pairRows.flatMap((p) => [p.beforeImageId, p.afterImageId]))];
     const pairRefs = new Map(
@@ -64,6 +86,11 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
       runId,
       runNumber: run.runNumber,
       thresholdsProvisional: config.thresholds.provisional,
+      /** Strongest evidence first (PRD §20): contradictions and counter-evidence are always included. */
+      bundle: {
+        totalImages: (await ctx.db.select({ id: imageAnalysis.id }).from(imageAnalysis).where(eq(imageAnalysis.runId, runId))).length,
+        entries: bundleRows,
+      },
       /** Before/after pairs evaluated for this run, confirmed first (PRD §24). */
       pairs: pairRows
         .map((p) => {
@@ -107,6 +134,10 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
           reasons: a.reasons,
           explanation: a.explanation,
           components: a.components,
+          /** This service's bundled images in reviewer order. */
+          bundle: bundleRows
+            .filter((b) => (b.services as { service: string }[]).some((s) => s.service === a.serviceCode))
+            .map((b) => ({ imageId: b.imageId, ref: b.ref, roles: (b.services as { service: string; role: string }[]).filter((s) => s.service === a.serviceCode).map((s) => s.role) })),
           supporting: mine.filter((i) => i.role === "SUPPORTING"),
           contradicting: mine.filter((i) => i.role === "CONTRADICTING"),
           context: mine.filter((i) => i.role === "CONTEXT"),

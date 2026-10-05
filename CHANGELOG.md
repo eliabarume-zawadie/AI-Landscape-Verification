@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.7.0] — Phase 7: Evidence bundling — 2026-10-05
+
+### Added
+- **Evidence bundler** (`domain/bundle.ts`, pure): the smallest useful set of images per location, strongest first, each image listed once with every service and role it serves (`SUPPORTING`, `CONTRADICTING`, `CONTEXT`, `BEFORE`, `AFTER`).
+  - **Always included**: both sides of every contradiction; significant counter-evidence; the before/after pair that established each service. The size cap (`bundle.max_images`, 16) only trims optional images.
+  - **Strongest support**: top `bundle.per_service_supporting` (3) per service, one per duplicate cluster, spread across areas before taking a second photo of the same area. Baseline (before-photo) items and unusable images never count as support.
+  - **No support**: one context image so the reviewer sees why (e.g. equipment only).
+- **Evidence order for all images** (PRD §23): bundle first, then by evidence value (quality, strength, before/after role, counter-evidence); duplicates after their representative, unusable last. Order only, never shown as a number.
+- Bundle stage in `EVIDENCE_BUILDING`: `evidence_bundle_items` table, `image_analysis.evidence_rank`, `evidence.in_bundle/rank`, `EVIDENCE_BUNDLED` audit event (sizes per service).
+- APIs: evidence endpoint returns `bundle` (entries with rank, reasons, services) and each service's bundled images; image list supports `?order=evidence` and returns `inBundle` + summary count.
+- Thresholds **v5** (provisional): `bundle.max_images`, `bundle.per_service_supporting`.
+- Migration `0008`.
+
+### Outcomes on mock scenarios
+- 170-image location → 4 images; demo 6 (26 photos, 25 near-duplicates) → 2; demo 4 → 4 of 5 with the contradicting photo first; demo 1 → all 8 (small location, every photo is evidence).
+
+### Verified
+- 338 tests passing.
+
 ## [0.6.0] — Phase 6: Before/after intelligence — 2026-10-05
 
 ### Added

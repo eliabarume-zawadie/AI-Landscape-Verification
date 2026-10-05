@@ -181,6 +181,12 @@ export const thresholdsSchema = z
       /** Model's same-area confidence needed to accept a pair. */
       min_same_area_confidence: unitInterval,
     }),
+    bundle: z.object({
+      /** Soft cap on bundle size; must-include images are never dropped to meet it. */
+      max_images: z.number().int().min(1),
+      /** Strongest supporting images per service (after must-includes). */
+      per_service_supporting: z.number().int().min(1),
+    }),
     risk: z.object({ medium_at: unitInterval, high_at: unitInterval }),
     metrics: z.object({ min_sample_size: z.number().int().positive() }),
   })
