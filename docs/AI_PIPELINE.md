@@ -25,6 +25,31 @@ Why two duplicate signals: dHash alone captures structure, and before/after phot
 
 Unusable images stay visible to reviewers but can never count as positive evidence. Duplicates are clustered for counting only; every image remains viewable.
 
+## Vision stage (implemented, Phase 4)
+
+| Step | Rule |
+|---|---|
+| Select | Only images that are usable **and** represent their duplicate cluster. Others are recorded as `SKIPPED_UNUSABLE` / `SKIPPED_DUPLICATE` |
+| Prepare | Decode (HEIC via libheif), orient, resize to ≤ `VISION_MAX_IMAGE_SIDE`, JPEG |
+| Cache | Key = SHA-256 of image + prompt hash + provider/model/settings + rules version + requested services + size |
+| Call | `VisionProvider.analyzeImage` with the rendered versioned prompt and a JSON Schema whose enums restrict services/evidence types |
+| Validate | `validateImageAnalysis`: structural schema, then registry rules (see below). Malformed → one retry → `MALFORMED` |
+| Record | `image_analysis`: status, validated observations, raw response, warnings, served model, cost, latency, relevance; AI visibility issues make the image unusable |
+| Fail | Provider outage/rate limit → job retry with backoff. Auth failure → `AI_ERROR` immediately. No valid analysis for any candidate → `AI_ERROR` |
+
+Validation drops (with a warning): unrequested services; evidence types not defined for that service; strength outside 0–1; empty description; any evidence on an image the model marked irrelevant. Polarity (positive / negative / context) always comes from the registry, never from the model.
+
+Analysis statuses: `ANALYZED`, `CACHED`, `SKIPPED_UNUSABLE`, `SKIPPED_DUPLICATE`, `MALFORMED`, `REFUSED`. Only `ANALYZED`/`CACHED` observations can ever become evidence.
+
+### Providers
+
+| Provider | When | Notes |
+|---|---|---|
+| `MockVisionProvider` | `MOCK_AI=true` | Reports the scenario's scripted signals; simulates outage, malformed, hallucination, refusal |
+| `AnthropicVisionProvider` | `MOCK_AI=false`, `VISION_PROVIDER=anthropic`, `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true` | `claude-opus-5-5` by default; structured JSON output; effort `high`; server-side refusal fallback; served model recorded per image |
+
+Adding a provider means implementing `VisionProvider.analyzeImage` (return raw output, served model, usage, refusal). Validation, caching and recording are shared.
+
 ## Division of responsibility
 
 | Vision model (non-deterministic) | ALVIP code (deterministic, tested, versioned) |

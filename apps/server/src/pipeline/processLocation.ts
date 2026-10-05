@@ -1,7 +1,7 @@
 import { and, count, eq, max, sql } from "drizzle-orm";
 import { recordAudit, type Actor } from "../audit/audit";
 import { loadActiveConfig, type ActiveConfig } from "../config/configStore";
-import { clients, images, locations, processingRuns } from "../db/schema";
+import { clients, images, locations, locationServices, processingRuns } from "../db/schema";
 import { IN_PROGRESS_STATUSES } from "../domain/locationState";
 import type { Db } from "../db/client";
 import { WorkItemError } from "../services/errors";
@@ -9,13 +9,15 @@ import { reachableErrorStatus, transitionLocation } from "../services/locationTr
 import type { JobContext, JobHandler } from "./jobHandler";
 import { JOB_TYPES, type ProcessLocationPayload } from "./jobTypes";
 import { runImageStage } from "./stages/imageStage";
+import { runVisionStage } from "./stages/visionStage";
 
 /**
  * PROCESS_LOCATION: one processing run for one location (PRD §12, §40).
  *
  * Stages so far: crash recovery, versioned run creation, image reference acquisition,
- * image bytes + format/quality + duplicate clustering (Phase 3), then routing to human
- * review. AI stages (vision, pairing, evidence, risk) are added in Phases 4–8. Until then no AI analysis is
+ * image bytes + format/quality + duplicate clustering (Phase 3), AI vision observations
+ * (Phase 4), then routing to human review. Evidence, pairing, and risk stages are added
+ * in Phases 5–8. Until then no AI analysis is
  * claimed: the run records `aiAnalysisPerformed: false` and the location goes to
  * HUMAN_REVIEW with recommendation NEEDS_HUMAN_REVIEW.
  */
@@ -89,35 +91,29 @@ export const processLocationHandler: JobHandler = {
     });
     await ctx.heartbeat();
 
-    // ---- Stages 4–8 (vision, pairing, evidence, risk) plug in here.
+    // ---- Automation level 0: manual verification, no AI analysis.
+    if (ctx.env.AUTOMATION_LEVEL === 0) {
+      await finishRun(ctx, { locationId: loc.id, runId, actor, aiAnalysisPerformed: false, reason: "AUTOMATION_LEVEL_0_MANUAL" });
+      return;
+    }
 
-    // ---- Route to human review. No AI decision is made in this phase.
-    const reason = ctx.env.AUTOMATION_LEVEL === 0 ? "AUTOMATION_LEVEL_0_MANUAL" : "AI_STAGES_NOT_YET_AVAILABLE";
-    await db.transaction(async (tx) => {
-      await tx
-        .update(processingRuns)
-        .set({
-          status: "SUCCEEDED",
-          completedAt: sql`now()`,
-          aiRecommendation: "NEEDS_HUMAN_REVIEW",
-          lane: "HUMAN_REVIEW",
-        })
-        .where(eq(processingRuns.id, runId));
-      await recordAudit(tx, {
-        eventType: "ANALYSIS_COMPLETED",
-        actor,
-        locationId: loc.id,
-        runId,
-        data: { aiAnalysisPerformed: false, reason, recommendation: "NEEDS_HUMAN_REVIEW" },
-      });
-      await transitionLocation(tx, {
-        locationId: loc.id,
-        to: "HUMAN_REVIEW",
-        actor,
-        runId,
-        lane: "HUMAN_REVIEW",
-        reason,
-      });
+    // ---- Stage: AI vision observations (Phase 4)
+    await transitionLocation(db, { locationId: loc.id, to: "ANALYZING", actor, runId });
+    const services = (
+      await db.select({ code: locationServices.serviceCode }).from(locationServices).where(eq(locationServices.locationId, loc.id))
+    ).map((r) => r.code);
+    await runVisionStage(ctx, { locationId: loc.id, runId, services, config, actor });
+    await transitionLocation(db, { locationId: loc.id, to: "EVIDENCE_BUILDING", actor, runId });
+
+    // ---- Stages 5–8 (evidence, pairing, bundling, risk) plug in here.
+
+    await finishRun(ctx, {
+      locationId: loc.id,
+      runId,
+      actor,
+      aiAnalysisPerformed: true,
+      reason: "EVIDENCE_ENGINE_NOT_YET_AVAILABLE",
+      via: ["AI_REVIEW_READY"],
     });
   },
 
@@ -240,3 +236,44 @@ async function failRunningRuns(db: Db, locationId: string, error: string): Promi
     .where(and(eq(processingRuns.locationId, locationId), eq(processingRuns.status, "RUNNING")));
 }
 
+/**
+ * Close a successful run and route the location to human review. No AI decision is
+ * made: the recommendation is NEEDS_HUMAN_REVIEW until the evidence and risk engines
+ * (Phases 5–8) exist, and even then final decisions stay human (PRD §27).
+ */
+async function finishRun(
+  ctx: JobContext,
+  input: {
+    locationId: string;
+    runId: string;
+    actor: Actor;
+    aiAnalysisPerformed: boolean;
+    reason: string;
+    via?: ("AI_REVIEW_READY")[];
+  },
+): Promise<void> {
+  await ctx.db.transaction(async (tx) => {
+    await tx
+      .update(processingRuns)
+      .set({ status: "SUCCEEDED", completedAt: sql`now()`, aiRecommendation: "NEEDS_HUMAN_REVIEW", lane: "HUMAN_REVIEW" })
+      .where(eq(processingRuns.id, input.runId));
+    await recordAudit(tx, {
+      eventType: "ANALYSIS_COMPLETED",
+      actor: input.actor,
+      locationId: input.locationId,
+      runId: input.runId,
+      data: { aiAnalysisPerformed: input.aiAnalysisPerformed, reason: input.reason, recommendation: "NEEDS_HUMAN_REVIEW" },
+    });
+    for (const step of input.via ?? []) {
+      await transitionLocation(tx, { locationId: input.locationId, to: step, actor: input.actor, runId: input.runId });
+    }
+    await transitionLocation(tx, {
+      locationId: input.locationId,
+      to: "HUMAN_REVIEW",
+      actor: input.actor,
+      runId: input.runId,
+      lane: "HUMAN_REVIEW",
+      reason: input.reason,
+    });
+  });
+}

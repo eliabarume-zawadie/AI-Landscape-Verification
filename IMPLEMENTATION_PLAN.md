@@ -1,6 +1,6 @@
 # ALVIP — Implementation Plan
 
-**Status:** Phases 0–3 complete · Phase 4 next
+**Status:** Phases 0–4 complete · Phase 5 next
 **Source spec:** [PRD.md](PRD.md) v1.0
 **Last updated:** 2026-10-05
 
@@ -269,6 +269,8 @@ interface VisionProvider {
 | A13 | Reviewers can see all locations until reviewer assignment is defined (PRD §52 "view assigned locations"; assignment model unknown). |
 | A14 | Image bytes are purged only for locations that are `COMPLETED` or `SYNCED_TO_NETSUITE`; a location sitting in review longer than the retention window keeps its images until it finishes. |
 | A15 | Crews likely submit iPhone **HEIC** photos (confirmed by business, 2026-10-05). Accepted formats: JPEG, PNG, WebP, HEIF (incl. AVIF and HEVC HEIC). sharp cannot decode HEVC HEIC (verified on a real file), so those are decoded with libheif (WebAssembly, `heic-decode`), max 2 concurrent decodes. Pending: test with real crew photos, and check HEVC patent/licensing position with legal (see SECURITY.md). |
+| A16 | First real vision adapter is Claude (`claude-opus-5-5`, effort `high`, refusal fallback on). This is a candidate only; the production provider is chosen by golden-dataset evaluation (Phase 13). Fallbacks can change the serving model, so the served model is recorded per image and evaluation must group by it. |
+| A17 | Images are sent one per request at ≤1568 px. Batching several images per request, or the Batch API (async, lower cost), are possible later optimisations once accuracy is measured. |
 | A11 | A client profile can make a service's confidence threshold **stricter** but never looser than the service default. Any rule requiring human review (service default, client-wide, client per-service) wins. |
 
 ---
@@ -320,7 +322,7 @@ interface VisionProvider {
 | 1 | Architecture scaffold, config (env, mock flags, automation guard), versioned service registry + client profiles + thresholds, full DB schema + migrations, auth + RBAC, append-only audit, adapter interfaces, location state machine, docs skeleton | ✅ Done (see CHANGELOG 0.1.0) |
 | 2 | Postgres queue + workers, NetSuite mock ingest, location processor & state transitions | ✅ Done (CHANGELOG 0.2.0) |
 | 3 | Image acquisition, format validation, pixel quality, exact + near-duplicate detection, storage + retention | ✅ Done (CHANGELOG 0.3.0) |
-| 4 | Vision abstraction, prompt registry, schema validation, mock provider, caching, cost tracking | ⏳ |
+| 4 | Vision abstraction, prompt registry, schema validation, mock provider, caching, cost tracking | ✅ Done (CHANGELOG 0.4.0) |
 | 5 | Service evidence aggregation (5-state status) | ⏳ |
 | 6 | Before/after pairing + comparison | ⏳ |
 | 7 | Evidence ranking, diversity, bundling | ⏳ |

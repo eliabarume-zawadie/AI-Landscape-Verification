@@ -36,12 +36,13 @@ describe("image stage across all mock scenarios", () => {
     await t.close();
   });
 
-  it("still routes every readable location to human review (no AI decisions yet)", async () => {
+  it("routes every readable location to human review (no AI decisions)", async () => {
     const all = await t.h.db.select({ id: locations.externalId, status: locations.status }).from(locations);
     const statuses = Object.fromEntries(all.map((l) => [l.id, l.status]));
     expect(statuses["NS-DEMO-005"]).toBe("HUMAN_REVIEW"); // one usable image remains
     expect(statuses["NS-DEMO-014"]).toBe("IMAGE_ERROR");
-    expect(all.filter((l) => l.status === "HUMAN_REVIEW")).toHaveLength(13);
+    expect(statuses["NS-DEMO-008"]).toBe("AI_ERROR");
+    expect(all.filter((l) => l.status === "HUMAN_REVIEW")).toHaveLength(12);
   });
 
   it("stores bytes privately and records hashes and dimensions", async () => {

@@ -47,8 +47,8 @@ describe("ingest + queue endpoints", () => {
   it("summarises the queue by status and lane", async () => {
     const res = await app.inject({ url: "/api/queue/summary", headers: as("REVIEWER") });
     const body = res.json();
-    expect(body.byStatus).toMatchObject({ HUMAN_REVIEW: 13, INTEGRATION_ERROR: 2, IMAGE_ERROR: 1 });
-    expect(body.byLane).toMatchObject({ HUMAN_REVIEW: 13, EXCEPTION: 3 });
+    expect(body.byStatus).toMatchObject({ HUMAN_REVIEW: 12, AI_ERROR: 1, INTEGRATION_ERROR: 2, IMAGE_ERROR: 1 });
+    expect(body.byLane).toMatchObject({ HUMAN_REVIEW: 12, EXCEPTION: 4 });
     expect(body.oldestUnprocessedReceivedAt).toBeNull();
   });
 });
@@ -64,7 +64,9 @@ describe("GET /api/locations", () => {
 
   it("filters by lane (Exception Lane)", async () => {
     const body = (await app.inject({ url: "/api/locations?lane=EXCEPTION", headers: as("REVIEWER") })).json();
-    expect(body.items.map((i: { externalId: string }) => i.externalId).sort()).toEqual(["NS-DEMO-012", "NS-DEMO-013", "NS-DEMO-014"]);
+    expect(body.items.map((i: { externalId: string }) => i.externalId).sort()).toEqual([
+      "NS-DEMO-008", "NS-DEMO-012", "NS-DEMO-013", "NS-DEMO-014",
+    ]);
   });
 
   it("filters by client, service, status, and text search", async () => {

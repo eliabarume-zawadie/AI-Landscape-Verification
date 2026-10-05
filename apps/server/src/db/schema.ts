@@ -316,6 +316,15 @@ export const imageAnalysis = pgTable(
     observations: jsonb("observations"),
     rawResponse: jsonb("raw_response"),
     validationError: text("validation_error"),
+    /** Entries dropped by validation (e.g. hallucinated evidence types). */
+    validationWarnings: jsonb("validation_warnings").notNull().default([]),
+    /**
+     * Vision outcome for this image: ANALYZED | CACHED | SKIPPED_UNUSABLE | SKIPPED_DUPLICATE
+     * | MALFORMED | REFUSED | NOT_RUN. Only ANALYZED/CACHED observations can become evidence.
+     */
+    analysisStatus: text("analysis_status"),
+    /** Model that actually answered (may differ from the configured one after a fallback). */
+    servedModel: text("served_model"),
     cacheHit: boolean("cache_hit").notNull().default(false),
     costUsd: numeric("cost_usd", { precision: 12, scale: 6 }),
     latencyMs: integer("latency_ms"),
@@ -405,6 +414,20 @@ export const contradictions = pgTable(
   },
   (t) => [index("contradictions_run_idx").on(t.runId)],
 );
+
+/**
+ * Validated vision results keyed by image content + every input that can change the
+ * answer (prompt hash, provider/model/settings, service rule version, requested
+ * services). Avoids paying twice for the same image (PRD §49).
+ */
+export const visionCache = pgTable("vision_cache", {
+  cacheKey: text("cache_key").primaryKey(),
+  sha256: text("sha256").notNull(),
+  result: jsonb("result").notNull(),
+  servedModel: text("served_model").notNull(),
+  costUsd: numeric("cost_usd", { precision: 12, scale: 6 }),
+  createdAt: createdAt(),
+});
 
 // ---------------------------------------------------------------- queue
 export const verificationJobs = pgTable(

@@ -19,6 +19,8 @@
 | Image storage | Private directory (`STORAGE_DIR`), atomic writes, storage keys validated against path traversal |
 | Malicious images | Decode guarded by `max_input_pixels` (decompression bombs) and `max_image_bytes`; undecodable files are recorded as `CORRUPT`, never served transcoded |
 | Retention | Image bytes purged after `IMAGE_RETENTION_DAYS` for finished locations (`IMAGES_PURGED` audit) |
+| External AI | No image leaves the system unless `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true` is set explicitly (startup refuses otherwise); runs and audit events record `externalProvider` |
+| AI output | Treated as untrusted input: schema- and registry-validated, size-limited, never executed, never able to set a status or decision |
 | Unsafe automation | `AUTOMATION_LEVEL` > 3 refused at startup |
 
 ## Planned
@@ -26,7 +28,7 @@
 - Access logging of evidence views (`EVIDENCE_VIEWED`, Phase 9).
 - SSO via the organisation's IdP (unknown U12).
 - Encryption at rest: managed Postgres + object-storage encryption (hosting decision U13).
-- Third-party AI data handling: no client images are sent to an external AI provider until a DPA/privacy approval exists (unknown U9).
+- Third-party AI data handling: enforced by `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING` (default false); set it only once a DPA/privacy approval exists (unknown U9).
 
 ## Dependency notes
 

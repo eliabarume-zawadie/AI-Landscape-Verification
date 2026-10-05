@@ -35,6 +35,7 @@ export const QUALITY_ISSUES = [
   "TOO_DARK",
   "OVEREXPOSED",
   "OBSTRUCTED",
+  "TOO_DISTANT",
   "IRRELEVANT",
 ] as const;
 export type QualityIssue = (typeof QUALITY_ISSUES)[number];

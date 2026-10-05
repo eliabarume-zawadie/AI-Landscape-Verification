@@ -1,4 +1,9 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { ConfigError, type Env } from "../config/env";
+import { AnthropicVisionProvider, type ModelPricing } from "./vision/anthropic/AnthropicVisionProvider";
+import { MockVisionProvider } from "./vision/mock/MockVisionProvider";
+import type { VisionProvider } from "./vision/VisionProvider";
 import type { ImageProvider } from "./images/ImageProvider";
 import { MockImageProvider } from "./images/mock/MockImageProvider";
 import { MockNetSuiteAdapter } from "./netsuite/mock/MockNetSuiteAdapter";
@@ -10,6 +15,7 @@ export interface Integrations {
   netsuite: NetSuiteAdapter;
   images: ImageProvider;
   storage: StorageProvider;
+  vision: VisionProvider;
 }
 
 /**
@@ -21,7 +27,30 @@ export function createIntegrations(env: Env): Integrations {
     netsuite: createNetSuiteAdapter(env),
     images: createImageProvider(env),
     storage: new LocalStorageProvider(env.STORAGE_DIR),
+    vision: createVisionProvider(env),
   };
+}
+
+function createVisionProvider(env: Env): VisionProvider {
+  if (env.MOCK_AI) return new MockVisionProvider();
+  if (env.VISION_PROVIDER !== "anthropic") {
+    throw new ConfigError("MOCK_AI=false requires VISION_PROVIDER (supported: anthropic).");
+  }
+  if (!env.ALLOW_EXTERNAL_AI_IMAGE_PROCESSING) {
+    throw new ConfigError(
+      "VISION_PROVIDER=anthropic sends client images to a third-party API. Set " +
+        "ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true only after data-processing approval (IMPLEMENTATION_PLAN U9).",
+    );
+  }
+  const pricing = JSON.parse(readFileSync(path.join(env.CONFIG_DIR, "model-pricing.json"), "utf8")) as {
+    models: Record<string, ModelPricing>;
+  };
+  return new AnthropicVisionProvider({
+    model: env.VISION_MODEL,
+    effort: env.VISION_EFFORT,
+    fallbacks: env.VISION_FALLBACKS,
+    pricing: pricing.models,
+  });
 }
 
 function createNetSuiteAdapter(env: Env): NetSuiteAdapter {

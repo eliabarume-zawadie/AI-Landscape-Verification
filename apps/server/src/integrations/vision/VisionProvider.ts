@@ -1,56 +1,51 @@
 /**
  * Model-agnostic vision interface (PRD §16–17).
  *
- * Providers return OBSERVATIONS only. They never return a service status,
- * recommendation, or approval — those are computed deterministically by the
- * evidence and risk engines. Response schemas and validation arrive in Phase 4.
+ * Providers return raw OBSERVATION output only. They never return a service status,
+ * recommendation, or approval — those are computed deterministically by the evidence
+ * and risk engines. Every response is validated by the caller
+ * (domain/observations.ts) before use; providers are not trusted to validate.
  */
 export interface VisionProvider {
   readonly info: VisionProviderInfo;
-  analyzeImages(request: ImageAnalysisRequest): Promise<ProviderResponse[]>;
-  comparePair(request: PairComparisonRequest): Promise<ProviderResponse>;
+  analyzeImage(request: ImageAnalysisRequest): Promise<ProviderResponse>;
 }
 
 export interface VisionProviderInfo {
   provider: string;
   model: string;
+  /** Provider-specific version detail (e.g. effort level, adapter version). */
   modelVersion: string;
+  /** True when images leave this system (third-party API). */
+  external: boolean;
 }
 
 export interface VisionImageInput {
   imageId: string;
+  /** Source-system reference; real providers ignore it, the mock uses it. */
+  externalRef: string;
   bytes: Buffer;
-  mediaType: string;
-}
-
-export interface ServiceContext {
-  code: string;
-  displayName: string;
-  description: string;
-  evidenceTypes: { type: string; description: string; polarity: "positive" | "negative" | "context" }[];
-  safetyNotes: string[];
+  mediaType: "image/jpeg" | "image/png" | "image/webp";
 }
 
 export interface ImageAnalysisRequest {
-  images: VisionImageInput[];
-  services: ServiceContext[];
-  promptVersion: string;
+  image: VisionImageInput;
+  /** Service codes to look for (subset of the active registry). */
+  services: string[];
+  /** Fully rendered instructions from a versioned prompt template. */
+  prompt: string;
+  promptLabel: string;
+  /** JSON Schema for structured output, where the provider supports it. */
+  outputSchema: Record<string, unknown>;
 }
 
-export interface PairComparisonRequest {
-  before: VisionImageInput;
-  after: VisionImageInput;
-  services: ServiceContext[];
-  promptVersion: string;
-}
-
-/**
- * Raw provider output. `output` is untrusted and MUST be schema-validated by the
- * caller before use; malformed output is never treated as evidence.
- */
 export interface ProviderResponse {
-  imageId?: string;
+  /** Untrusted: parsed JSON object, or raw text when the provider returned non-JSON. */
   output: unknown;
+  /** The model that actually produced the output (may differ after a server-side fallback). */
+  servedModel: string;
+  /** Provider declined to answer (safety refusal) — not an error, not evidence. */
+  refused?: { category: string | null; explanation: string | null };
   usage: { inputTokens?: number; outputTokens?: number; costUsd?: number };
   latencyMs: number;
 }

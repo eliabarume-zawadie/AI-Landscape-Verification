@@ -52,6 +52,21 @@ const envSchema = z.object({
   STORAGE_DIR: z.string().default(path.join(repoRoot, ".data", "images")),
   IMAGE_FETCH_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
 
+  /** Real vision provider when MOCK_AI=false. Only "anthropic" is implemented. */
+  VISION_PROVIDER: z.enum(["anthropic"]).optional(),
+  VISION_MODEL: z.string().default("claude-opus-5-5"),
+  VISION_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("high"),
+  /** Server-side refusal fallback for the Claude adapter; the served model is always recorded. */
+  VISION_FALLBACKS: bool(true),
+  VISION_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+  /** Long side of the copy sent to the vision model. */
+  VISION_MAX_IMAGE_SIDE: z.coerce.number().int().min(256).max(4096).default(1568),
+  /**
+   * Explicit acknowledgement that client images may be sent to a third-party AI API.
+   * Must stay false until the data-processing approval (plan unknown U9) exists.
+   */
+  ALLOW_EXTERNAL_AI_IMAGE_PROCESSING: bool(false),
+
   IMAGE_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   /** How often the worker purges image bytes past retention. 0 disables. */
   RETENTION_SWEEP_INTERVAL_SEC: z.coerce.number().int().min(0).default(3600),

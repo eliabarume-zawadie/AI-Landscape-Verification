@@ -83,9 +83,10 @@ describe("queue → location → processing (mock mode)", () => {
     const byId = Object.fromEntries(all.map((l) => [l.externalId, l]));
 
     expect(byId["NS-DEMO-014"]).toMatchObject({ status: "IMAGE_ERROR", lane: "EXCEPTION" }); // no images
+    expect(byId["NS-DEMO-008"]).toMatchObject({ status: "AI_ERROR", lane: "EXCEPTION" }); // demo case 8: AI outage
     for (const id of ["NS-DEMO-012", "NS-DEMO-013"]) expect(byId[id]!.status).toBe("INTEGRATION_ERROR");
-    const reviewable = all.filter((l) => !["NS-DEMO-012", "NS-DEMO-013", "NS-DEMO-014"].includes(l.externalId));
-    expect(reviewable).toHaveLength(13);
+    const reviewable = all.filter((l) => !["NS-DEMO-008", "NS-DEMO-012", "NS-DEMO-013", "NS-DEMO-014"].includes(l.externalId));
+    expect(reviewable).toHaveLength(12);
     for (const l of reviewable) expect(l, l.externalId).toMatchObject({ status: "HUMAN_REVIEW", lane: "HUMAN_REVIEW" });
 
     expect(all.some((l) => l.status === "APPROVED" || l.status === "REJECTED")).toBe(false);
@@ -93,10 +94,12 @@ describe("queue → location → processing (mock mode)", () => {
 
   it("follows and audits the state machine path", async () => {
     const l = await loc("NS-DEMO-001");
-    expect(await statusTrail(l.id)).toEqual(["QUEUED", "DOWNLOADING", "HUMAN_REVIEW"]);
+    expect(await statusTrail(l.id)).toEqual([
+      "QUEUED", "DOWNLOADING", "ANALYZING", "EVIDENCE_BUILDING", "AI_REVIEW_READY", "HUMAN_REVIEW",
+    ]);
   });
 
-  it("records a versioned run and is honest that no AI analysis ran yet", async () => {
+  it("records a versioned run, including the vision model and prompt version", async () => {
     const l = await loc("NS-DEMO-001");
     const [run] = await runsOf(l.id);
     expect(run).toMatchObject({
@@ -107,7 +110,10 @@ describe("queue → location → processing (mock mode)", () => {
       aiRecommendation: "NEEDS_HUMAN_REVIEW",
       automationLevel: 1,
       applicationVersion: "0.1.0",
+      visionProvider: "mock",
+      visionModel: "mock-vision",
     });
+    expect(run!.promptVersion).toMatch(/^image_analysis_v1@[0-9a-f]{8}$/);
     expect(run!.serviceRuleVersionId).not.toBeNull();
     expect(run!.clientProfileId).not.toBeNull();
     expect(run!.thresholdVersionId).not.toBeNull();
@@ -117,7 +123,8 @@ describe("queue → location → processing (mock mode)", () => {
       .select({ data: auditEvents.data })
       .from(auditEvents)
       .where(and(eq(auditEvents.runId, run!.id), eq(auditEvents.eventType, "ANALYSIS_COMPLETED")));
-    expect(completed!.data).toMatchObject({ aiAnalysisPerformed: false });
+    // AI observed, but no AI decision: evidence/risk engines arrive in later phases.
+    expect(completed!.data).toMatchObject({ aiAnalysisPerformed: true, recommendation: "NEEDS_HUMAN_REVIEW" });
   });
 
   it("stores image references for a 170-image location", async () => {
@@ -133,7 +140,8 @@ describe("queue → location → processing (mock mode)", () => {
     expect(runs[0]!.error).toMatch(/TRANSIENT/);
     expect(l.status).toBe("HUMAN_REVIEW");
     expect(await statusTrail(l.id)).toEqual([
-      "QUEUED", "DOWNLOADING", "QUEUED", "DOWNLOADING", "QUEUED", "DOWNLOADING", "HUMAN_REVIEW",
+      "QUEUED", "DOWNLOADING", "QUEUED", "DOWNLOADING", "QUEUED", "DOWNLOADING",
+      "ANALYZING", "EVIDENCE_BUILDING", "AI_REVIEW_READY", "HUMAN_REVIEW",
     ]);
   });
 

@@ -2,6 +2,7 @@ import type { Env } from "../config/env";
 import type { DbHandle } from "../db/client";
 import { MockImageProvider } from "../integrations/images/mock/MockImageProvider";
 import { MockNetSuiteAdapter } from "../integrations/netsuite/mock/MockNetSuiteAdapter";
+import { MockVisionProvider } from "../integrations/vision/mock/MockVisionProvider";
 import { MOCK_SCENARIOS, type MockScenario } from "../integrations/netsuite/mock/scenarios";
 import { PgQueue } from "../integrations/queue/PgQueue";
 import { MemoryStorageProvider } from "../integrations/storage/LocalStorageProvider";
@@ -18,6 +19,7 @@ export interface Harness {
   env: Env;
   netsuite: MockNetSuiteAdapter;
   storage: MemoryStorageProvider;
+  vision: MockVisionProvider;
   queue: PgQueue;
   runtime: Runtime;
   worker: Worker;
@@ -35,13 +37,15 @@ export async function createHarness(
   const queue = new PgQueue(h.db, { baseMs: 0, capMs: 0 }, () => 0);
   const images = new MockImageProvider(opts.scenarios ?? MOCK_SCENARIOS);
   const storage = new MemoryStorageProvider();
-  const runtime: Runtime = { queue, integrations: { netsuite, images, storage } };
+  const vision = new MockVisionProvider(opts.scenarios ?? MOCK_SCENARIOS);
+  const runtime: Runtime = { queue, integrations: { netsuite, images, storage, vision } };
   const worker = createWorker(env, h.db, runtime, silentLog, { pollNetSuite: false });
   return {
     h,
     env,
     netsuite,
     storage,
+    vision,
     queue,
     runtime,
     worker,

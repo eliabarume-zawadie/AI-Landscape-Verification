@@ -1,0 +1,12 @@
+{
+  "version": "pricing-2026-09-25",
+  "_note": "USD per million tokens, Anthropic first-party API rates as published 2026-09-25. Verify against the current price list before relying on cost reports. Used only for cost tracking, never for decisions.",
+  "models": {
+    "claude-opus-5-5": { "input_per_mtok": 4, "output_per_mtok": 20 },
+    "claude-opus-5": { "input_per_mtok": 5, "output_per_mtok": 25 },
+    "claude-opus-4-8": { "input_per_mtok": 5, "output_per_mtok": 25 },
+    "claude-fable-5-1": { "input_per_mtok": 10, "output_per_mtok": 50 },
+    "claude-sonnet-5-5": { "input_per_mtok": 2, "output_per_mtok": 10 },
+    "claude-haiku-4-5": { "input_per_mtok": 1, "output_per_mtok": 5 }
+  }
+}

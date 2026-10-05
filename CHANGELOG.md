@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0] — Phase 4: AI vision abstraction — 2026-10-05
+
+### Added
+- **Observation contract** (`domain/observations.ts`): the vision model may report relevance, visibility issues (`OBSTRUCTED`, `TOO_DISTANT`, `IRRELEVANT`), a scene summary, per-service observations `{service, evidence_type, strength, description}`, and services it cannot assess. There is no field for a status, confidence level, recommendation or approval.
+- **Validation of every response** against the structure and the active service registry. Unrequested services, evidence types not defined for that service (hallucinated categories), out-of-range strengths, empty descriptions, and any evidence on an image the model itself called irrelevant are dropped and recorded as warnings. Polarity always comes from the registry, never from the model. A malformed response is retried once, then recorded as `MALFORMED`.
+- **Versioned prompt** `prompts/image_analysis_v1.md` with the PRD §60 rules (no invisible evidence, no inferred work, equipment ≠ completion, healthy grass ≠ fertilization, no assumed before/after, actively report negative evidence, say "not assessable" instead of guessing). Service sections are rendered from the active rules. Prompts are registered with a content hash; editing a used version is refused.
+- **Vision stage**: only usable, non-duplicate images are sent. Images are resized (HEIC handled) before sending. Results are cached by image hash + prompt + model settings + rules version + services. A refusal is recorded as `REFUSED` (never evidence). Outages and rate limits retry the job with backoff (cached results are not paid twice). If no image gets a valid analysis, the location goes to `AI_ERROR`. Model-reported obstruction/irrelevance marks the image unusable.
+- **Workflow**: `DOWNLOADING → ANALYZING → EVIDENCE_BUILDING → AI_REVIEW_READY → HUMAN_REVIEW`. Level 0 still skips AI. The recommendation stays `NEEDS_HUMAN_REVIEW` until the evidence and risk engines exist.
+- **Mock vision provider** scripted from scenario signals, with simulated outage (demo case 8), malformed-once, always-malformed, hallucinated evidence type, and refusal.
+- **Claude adapter** (`AnthropicVisionProvider`, `@anthropic-ai/sdk`): one image per request, JSON-schema structured output, configurable effort (default `high`), server-side refusal fallback `"default"` (on by default). The model that actually served each image is recorded per image. Cost is computed from `config/model-pricing.json` (left blank for unpriced models). SDK errors are mapped to the retry policy. **Off by default**: it requires `MOCK_AI=false`, `VISION_PROVIDER=anthropic` and `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true`.
+- Runs record vision provider, model, settings and prompt label (`image_analysis_v1@<hash>`) plus AI cost. Per-image: analysis status, served model, raw response, validation warnings/errors, cache hit, cost, latency. New `AI_VISION_COMPLETED` audit event.
+- Migration `0004`: `vision_cache`, `image_analysis.analysis_status/served_model/validation_warnings`.
+
+### Verified
+- 227 tests passing. The Claude adapter is tested against a stubbed SDK client (request shape, fallback/served model, pricing, refusal, truncation, error mapping). No real API call has been made.
+- Live run: 12 locations through the full AI path, all versions recorded; the outage case retrying with backoff.
+
 ## [0.3.1] — HEIC support — 2026-10-05
 
 ### Added

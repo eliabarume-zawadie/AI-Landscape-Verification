@@ -24,6 +24,8 @@ export interface MockImageSpec {
   nearDuplicateOf?: string;
   /** Evidence types the mock vision provider will report, keyed by service. */
   signals?: Record<string, string[]>;
+  /** Simulated vision-model misbehaviour for this image. */
+  visionResponse?: "MALFORMED_ONCE" | "HALLUCINATED_TYPE" | "REFUSAL";
 }
 
 export type MockFailure =
@@ -136,7 +138,10 @@ export const MOCK_SCENARIOS: MockScenario[] = [
       add("hedge_row", "before", { signals: OVERGROWN_SHRUBS }),
       add("hedge_row", "after", { signals: PRUNED }),
       add("walkway", "after", { signals: EDGED }),
-      add("crew", "progress", { signals: { mowing: ["equipment_present"], edging: ["equipment_present"] } }),
+      add("crew", "progress", {
+        signals: { mowing: ["equipment_present"], edging: ["equipment_present"] },
+        visionResponse: "MALFORMED_ONCE", // first answer is not valid JSON; the retry succeeds
+      }),
     ]),
   },
   {
@@ -152,7 +157,10 @@ export const MOCK_SCENARIOS: MockScenario[] = [
     images: images("NS-DEMO-003", (add) => [
       add("front_bed", "after", { signals: { weed_removal: ["weeds_reduced"] } }),
       add("side_bed", "after", { signals: { weed_removal: ["weeds_reduced"] } }),
-      add("parking_island", "after", { signals: { weed_removal: ["weeds_reduced", "equipment_present"] } }),
+      add("parking_island", "after", {
+        signals: { weed_removal: ["weeds_reduced", "equipment_present"] },
+        visionResponse: "HALLUCINATED_TYPE", // model invents an evidence type; it must be dropped
+      }),
       add("street_view", "unrelated"),
     ]),
   },

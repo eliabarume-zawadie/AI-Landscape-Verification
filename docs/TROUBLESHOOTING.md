@@ -17,6 +17,10 @@
 | Image returns 410 | Purged under the retention policy | Expected; analysis and hashes remain. Re-fetch by reprocessing if the source still has it |
 | HEIC photos slow to process | HEVC HEIC is decoded in WebAssembly (~0.3 s per 1.4 MP image; a 12 MP iPhone photo takes longer), max 2 at a time | Expected; tune `IMAGE_FETCH_CONCURRENCY`/worker count. `image_analysis.quality_metrics.decoder` shows `libheif` for these images |
 | HEIC tests skipped | The real HEIC sample is not committed | `npx tsx apps/server/src/scripts/fetchHeicFixture.ts`, or drop a real crew HEIC at `fixtures/heic/sample.heic` |
+| `MOCK_AI=false requires VISION_PROVIDER` / `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING` on start | Real AI not configured, or external processing not approved | Configure per DEPLOYMENT.md, or keep `MOCK_AI=true` |
+| `Prompt image_analysis_v1 was modified after it was first used` | A prompt file was edited in place | Revert it and create `image_analysis_v2.md`; prompts are immutable once used |
+| Location stuck retrying then `AI_ERROR` | Provider outage / rate limit, or every response malformed or refused | See the run's `AI_VISION_COMPLETED` audit event and `image_analysis.validation_error`. The location can be sent to manual review from the Exception Lane |
+| Images show `MALFORMED` | The model returned invalid output twice | Check `image_analysis.raw_response`; frequent occurrences mean the prompt/schema needs a new version |
 | Reset local DB | — | Stop the API, delete `.data/pglite` and `.data/images`, re-run `npm run db:seed` |
 
 "Why is today's queue not clearing?": once Phase 12 lands, the dashboard and the Exception Lane answer this. Until then, check the `system_errors` and `verification_jobs` tables.
