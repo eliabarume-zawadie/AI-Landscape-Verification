@@ -10,8 +10,10 @@ import { LoginThrottle } from "./services/auth";
 async function main() {
   loadDotEnvFile();
   const env = loadEnv();
+  process.env.PGLITE_DATA_DIR ??= env.PGLITE_DATA_DIR; // for the error message below
   const handle = await openDb({ databaseUrl: env.DATABASE_URL, pgliteDataDir: env.PGLITE_DATA_DIR });
   await handle.migrate();
+  if (!env.DATABASE_URL) console.log(`Local data: ${env.PGLITE_DATA_DIR}`);
   if (env.NODE_ENV !== "production") {
     // Development: always run on the current config/ files. Idempotent; a changed file becomes
     // a new version (old versions are kept and the change is audited). Production config
@@ -59,9 +61,11 @@ main().catch((err) => {
   } else if ((err as NodeJS.ErrnoException)?.code === "EADDRINUSE") {
     console.error(`\nALVIP cannot start: port ${process.env.PORT ?? 3000} is already in use. Stop the other process or set PORT.\n`);
   } else if (String((err as Error)?.message).includes("PGlite failed to initialize")) {
+    const dir = process.env.PGLITE_DATA_DIR ?? "the local database folder";
     console.error(
-      "\nALVIP cannot start: the local database is locked by a previous run that did not shut down cleanly.\n" +
-        "Make sure no other ALVIP process is running, then delete .data/pglite/postmaster.pid and start again.\n",
+      `\nALVIP cannot start: the local database could not be opened (${dir}).\n` +
+        "Likely causes: another ALVIP process is using it (stop it), or a sync tool such as OneDrive changed its files.\n" +
+        "See docs/TROUBLESHOOTING.md → \"Local database cannot be opened\".\n",
     );
   } else {
     console.error(err);

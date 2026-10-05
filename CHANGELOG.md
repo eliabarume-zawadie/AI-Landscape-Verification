@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.2] — Fix: local database kept inside OneDrive — 2026-10-05
+
+### Fixed
+- The embedded database could not be opened from inside the OneDrive folder after an unclean stop: recovery needs to write files that the sync client was locking. An identical copy outside OneDrive opened and recovered normally. Local data (database + image storage) now defaults to `%LOCALAPPDATA%\ALVIP\data` when the project is inside a cloud-synced folder (OneDrive, Dropbox, iCloud, Google Drive); otherwise `.data/` as before. The location is printed at startup.
+- The startup message for this case wrongly blamed a leftover lock file; it now names the folder and the actual likely causes.
+
+### Migration
+- The existing local database was recovered from a copy and moved to `%LOCALAPPDATA%\ALVIP\data\pglite` (users and processed locations kept). The old `.data/` folder in the project was left untouched as a backup.
+
 ## [0.9.1] — Fix: server would not start on an older local database — 2026-10-05
 
 ### Fixed

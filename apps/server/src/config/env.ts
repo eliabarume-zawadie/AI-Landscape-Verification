@@ -6,6 +6,19 @@ import { MAX_ENABLED_AUTOMATION_LEVEL } from "@alvip/shared";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
+/**
+ * Where local data (embedded database, image storage) lives by default.
+ * Inside a cloud-synced folder (OneDrive, Dropbox, iCloud…) the sync client locks and
+ * rewrites files while the database is using them, which corrupts or blocks it. In that
+ * case the default moves to the machine's local app-data folder.
+ */
+export function defaultDataDir(root: string = repoRoot, localAppData = process.env.LOCALAPPDATA): string {
+  const synced = /onedrive|dropbox|icloud|google drive/i.test(root);
+  if (synced && localAppData) return path.join(localAppData, "ALVIP", "data");
+  return path.join(root, ".data");
+}
+const dataDir = defaultDataDir();
+
 export const VISION_PROVIDERS = ["anthropic", "openai"] as const;
 export type VisionProviderName = (typeof VISION_PROVIDERS)[number];
 /** Default model per provider; undefined = must be configured explicitly. */
@@ -28,7 +41,7 @@ const envSchema = z.object({
 
   /** Postgres connection string. If unset (dev/test only), embedded PGlite is used. */
   DATABASE_URL: z.string().url().optional(),
-  PGLITE_DATA_DIR: z.string().default(path.join(repoRoot, ".data", "pglite")),
+  PGLITE_DATA_DIR: z.string().default(path.join(dataDir, "pglite")),
 
   CONFIG_DIR: z.string().default(path.join(repoRoot, "config")),
   /** Built reviewer UI (apps/web/dist). Served by the API when the directory exists. */
@@ -59,7 +72,7 @@ const envSchema = z.object({
   NETSUITE_POLL_INTERVAL_SEC: z.coerce.number().int().min(0).default(60),
 
   /** Private image storage root (local filesystem driver). */
-  STORAGE_DIR: z.string().default(path.join(repoRoot, ".data", "images")),
+  STORAGE_DIR: z.string().default(path.join(dataDir, "images")),
   IMAGE_FETCH_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
 
   /** Vision provider used when MOCK_AI=false. */

@@ -10,7 +10,7 @@
 | Login always 429 | Throttle after 5 failures in 15 min for that email + IP | Wait, or restart the API (in-memory throttle) |
 | Cookie not set over http://localhost | `COOKIE_SECURE=true` | Set `COOKIE_SECURE=false` locally |
 | `EPERM` / file locks during `npm install` | OneDrive syncing `node_modules` | Exclude `node_modules/` and `.data/` from OneDrive or move the repo |
-| `PGlite failed to initialize properly` on start | The previous dev server was force-killed and left `.data/pglite/postmaster.pid` | Make sure no API process is running, delete `.data/pglite/postmaster.pid`, start again. Stop the dev server with Ctrl+C, not a force-kill |
+| "Local database cannot be opened" / `PGlite failed to initialize properly` | (a) another ALVIP process is using it; (b) the folder is inside OneDrive/Dropbox and the sync client locked or changed files; (c) a leftover `postmaster.pid` from a force-killed run | (a) stop other ALVIP processes (Ctrl+C in their terminals). (b) Keep local data outside synced folders — the default already moves to `%LOCALAPPDATA%\ALVIP\data` when the project is in OneDrive; to rescue old data, copy the folder elsewhere, open the copy, then point `PGLITE_DATA_DIR` at it. (c) delete `postmaster.pid` if present. Stop the dev server with Ctrl+C, not a force-kill |
 | A location stays `QUEUED` for a while | A transient failure is in backoff (30 s base, doubling, 30 min cap) | Check `GET /api/jobs/:id` / `verification_jobs.last_error` |
 | Location in `INTEGRATION_ERROR` right after ingest | Unknown client, unknown service code, or no services | See the location's `openErrors`; fix config (`config/`), then reprocess |
 | Standalone worker refuses to start | It needs PostgreSQL (`DATABASE_URL`) | With PGlite use `WORKER_MODE=embedded` (default) |
@@ -27,6 +27,6 @@
 | `callCapReached: true` in `BEFORE_AFTER_COMPLETED` | More candidates than `pairing.max_pair_calls` | Expected on very large locations; raise the cap if evaluation shows value |
 | Browser shows `ERR_CONNECTION_REFUSED` | The server is not running — check the terminal running `npm run dev` for an "ALVIP cannot start" line | Fix what it says; the server prints `ALVIP is running: http://…` when ready |
 | `ALVIP cannot start: … outdated for this version` (production) | Stored config predates this app version | Run `npm run db:seed` (development applies config automatically on start) |
-| Reset local DB | — | Stop the API, delete `.data/pglite` and `.data/images`, re-run `npm run db:seed` |
+| Reset local DB | — | Stop the API, delete the data folder printed at startup (`Local data: …`), re-run `npm run db:seed` |
 
 "Why is today's queue not clearing?": once Phase 12 lands, the dashboard and the Exception Lane answer this. Until then, check the `system_errors` and `verification_jobs` tables.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError, loadEnv } from "./env";
+import path from "node:path";
+import { ConfigError, defaultDataDir, loadEnv } from "./env";
 
 describe("loadEnv", () => {
   it("defaults to mock mode and automation level 1 locally", () => {
@@ -44,5 +45,19 @@ describe("loadEnv", () => {
 
   it("treats empty strings as unset", () => {
     expect(loadEnv({ NETSUITE_API_BASE_URL: "", PORT: "" }).PORT).toBe(3000);
+  });
+});
+
+describe("defaultDataDir", () => {
+  it("keeps data in the repo when the repo is not in a synced folder", () => {
+    expect(defaultDataDir("C:/work/alvip", "C:/Users/x/AppData/Local")).toBe(path.join("C:/work/alvip", ".data"));
+  });
+  it("moves data to local app data when the repo is inside OneDrive (or similar)", () => {
+    for (const root of ["C:/Users/x/OneDrive/Desktop/alvip", "C:/Users/x/Dropbox/alvip"]) {
+      expect(defaultDataDir(root, "C:/Users/x/AppData/Local")).toBe(path.join("C:/Users/x/AppData/Local", "ALVIP", "data"));
+    }
+  });
+  it("falls back to the repo when no local app-data folder is known", () => {
+    expect(defaultDataDir("/home/x/OneDrive/alvip", "")).toBe(path.join("/home/x/OneDrive/alvip", ".data"));
   });
 });

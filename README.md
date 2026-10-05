@@ -67,4 +67,4 @@ docs/            architecture, API, database, security, deployment…
 - **Client profiles** — `config/client-profiles/*.json`. Current files are demo data only.
 - **Automation level** — `AUTOMATION_LEVEL` 0–3. Levels 4–5 are refused at startup.
 
-> **OneDrive note:** this folder is synced by OneDrive. Exclude `node_modules/` and `.data/` from sync (or move the repo) to avoid file-lock errors.
+> **OneDrive note:** when the project is inside a synced folder (OneDrive, Dropbox…), the local database and images are stored in `%LOCALAPPDATA%\ALVIP\data` instead of `.data/`, because sync clients lock database files. The location is printed at startup. Consider excluding `node_modules/` from sync as well.
