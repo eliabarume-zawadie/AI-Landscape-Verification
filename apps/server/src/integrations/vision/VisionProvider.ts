@@ -9,6 +9,8 @@
 export interface VisionProvider {
   readonly info: VisionProviderInfo;
   analyzeImage(request: ImageAnalysisRequest): Promise<ProviderResponse>;
+  /** Compare a candidate before/after pair (PRD §19). Same output contract rules. */
+  comparePair(request: PairComparisonRequest): Promise<ProviderResponse>;
 }
 
 export interface VisionProviderInfo {
@@ -36,6 +38,17 @@ export interface ImageAnalysisRequest {
   prompt: string;
   promptLabel: string;
   /** JSON Schema for structured output, where the provider supports it. */
+  outputSchema: Record<string, unknown>;
+}
+
+export interface PairComparisonRequest {
+  before: VisionImageInput;
+  after: VisionImageInput;
+  /** Labels shown before each photo; defaults to BEFORE / AFTER. */
+  labels?: [string, string];
+  services: string[];
+  prompt: string;
+  promptLabel: string;
   outputSchema: Record<string, unknown>;
 }
 

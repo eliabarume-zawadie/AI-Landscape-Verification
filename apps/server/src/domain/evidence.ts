@@ -36,6 +36,8 @@ export interface StageInputs {
    * negative observation counts as counter-evidence (conservative).
    */
   beforeImageIds?: ReadonlySet<string>;
+  /** Phase 6: NO_VISIBLE_CHANGE / WORSENED in confirmed before/after pairs, per service. */
+  pairCounterEvidence?: readonly { service: string; item: EvidenceItem }[];
 }
 
 export interface EvidenceContext {
@@ -56,6 +58,8 @@ export interface EvidenceItem {
   description: string;
   /** Negative evidence from a before photo: recorded as context, never counted against. */
   baseline?: boolean;
+  /** Set when the evidence comes from a before/after comparison. */
+  imagePairId?: string;
 }
 
 export interface ServiceAssessment {
@@ -106,6 +110,7 @@ function assessSimple(ctx: EvidenceContext, rules: EffectiveServiceRules): Servi
   const t = ctx.thresholds;
   const eligible = eligibleImages(ctx.images);
   const items = collect(eligible, rules, ctx.stage.beforeImageIds);
+  items.negative.push(...(ctx.stage.pairCounterEvidence ?? []).filter((e) => e.service === rules.code).map((e) => e.item));
   const reasons: string[] = [];
 
   // Positive evidence that may support on its own (not in insufficient_alone).

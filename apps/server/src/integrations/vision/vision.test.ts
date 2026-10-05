@@ -318,3 +318,32 @@ describe("vision provider selection", () => {
     );
   });
 });
+
+describe("pair comparison requests", () => {
+  const pairReq = {
+    before: { imageId: "b", externalRef: "B", bytes: Buffer.from("before"), mediaType: "image/jpeg" as const },
+    after: { imageId: "a", externalRef: "A", bytes: Buffer.from("after"), mediaType: "image/jpeg" as const },
+    services: ["mowing"],
+    prompt: "PAIR PROMPT",
+    promptLabel: "before_after_v1@x",
+    outputSchema: { type: "object" },
+  };
+
+  it("Claude: sends labelled BEFORE then AFTER images in one request", async () => {
+    const { client, calls } = stubClient(() => message({ content: [{ type: "text", text: "{}" }] }));
+    await new AnthropicVisionProvider({ model: "claude-opus-5-5", effort: "high", fallbacks: true, pricing, client }).comparePair(pairReq);
+    const content = calls[0]!.messages[0]!.content as { type: string; text?: string; source?: { data: string } }[];
+    expect(content.map((c) => c.text ?? c.type)).toEqual(["BEFORE photo:", "image", "AFTER photo:", "image", expect.stringMatching(/Compare/)]);
+    expect(content[1]!.source!.data).toBe(Buffer.from("before").toString("base64"));
+    expect(content[3]!.source!.data).toBe(Buffer.from("after").toString("base64"));
+    expect(calls[0]!.system).toBe("PAIR PROMPT");
+  });
+
+  it("OpenAI: honours custom labels (same-area checks)", async () => {
+    const { client, calls } = stubOpenAI(() => completion({ content: "{}" }));
+    await new OpenAIVisionProvider({ model: "m", pricing: {}, client }).comparePair({ ...pairReq, labels: ["PHOTO A", "PHOTO B"] });
+    const content = (calls[0]!.messages as { content: unknown }[])[1]!.content as { type: string; text?: string }[];
+    expect(content.filter((c) => c.type === "text").map((c) => c.text)).toEqual(["PHOTO A photo:", "PHOTO B photo:", expect.stringMatching(/Compare/)]);
+    expect(calls[0]!.response_format).toMatchObject({ json_schema: { name: "pair_comparison", strict: true } });
+  });
+});

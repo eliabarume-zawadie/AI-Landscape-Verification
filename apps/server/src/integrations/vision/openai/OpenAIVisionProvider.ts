@@ -3,7 +3,9 @@ import type { ModelPricing } from "../anthropic/AnthropicVisionProvider";
 import {
   VisionProviderError,
   type ImageAnalysisRequest,
+  type PairComparisonRequest,
   type ProviderResponse,
+  type VisionImageInput,
   type VisionProvider,
   type VisionProviderInfo,
 } from "../VisionProvider";
@@ -31,29 +33,39 @@ export class OpenAIVisionProvider implements VisionProvider {
     this.info = { provider: "openai", model: opts.model, modelVersion: "chat-completions;detail=high", external: true };
   }
 
-  async analyzeImage(req: ImageAnalysisRequest): Promise<ProviderResponse> {
+  analyzeImage(req: ImageAnalysisRequest): Promise<ProviderResponse> {
+    return this.send(req.prompt, req.outputSchema, "image_analysis", [
+      imagePart(req.image),
+      { type: "text", text: "Analyse this photograph according to the instructions and return the JSON object." },
+    ]);
+  }
+
+  comparePair(req: PairComparisonRequest): Promise<ProviderResponse> {
+    return this.send(req.prompt, req.outputSchema, "pair_comparison", [
+      { type: "text", text: `${req.labels?.[0] ?? "BEFORE"} photo:` },
+      imagePart(req.before),
+      { type: "text", text: `${req.labels?.[1] ?? "AFTER"} photo:` },
+      imagePart(req.after),
+      { type: "text", text: "Compare the two photographs according to the instructions and return the JSON object." },
+    ]);
+  }
+
+  private async send(
+    system: string,
+    schema: Record<string, unknown>,
+    schemaName: string,
+    content: OpenAI.Chat.Completions.ChatCompletionContentPart[],
+  ): Promise<ProviderResponse> {
     const started = Date.now();
     let response: OpenAI.Chat.Completions.ChatCompletion;
     try {
       response = await this.client.chat.completions.create({
         model: this.opts.model,
         messages: [
-          { role: "system", content: req.prompt },
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: { url: `data:${req.image.mediaType};base64,${req.image.bytes.toString("base64")}`, detail: "high" },
-              },
-              { type: "text", text: "Analyse this photograph according to the instructions and return the JSON object." },
-            ],
-          },
+          { role: "system", content: system },
+          { role: "user", content },
         ],
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: "image_analysis", schema: req.outputSchema, strict: true },
-        },
+        response_format: { type: "json_schema", json_schema: { name: schemaName, schema, strict: true } },
       });
     } catch (err) {
       throw mapError(err);
@@ -72,19 +84,23 @@ export class OpenAIVisionProvider implements VisionProvider {
     if (choice?.message.refusal) {
       return { output: null, servedModel: response.model, refused: { category: null, explanation: choice.message.refusal }, usage, latencyMs };
     }
+    if (choice?.finish_reason === "content_filter") {
+      return { output: null, servedModel: response.model, refused: { category: "content_filter", explanation: null }, usage, latencyMs };
+    }
     const text = choice?.message.content ?? "";
     let parsed: unknown = text;
     try {
       parsed = JSON.parse(text);
     } catch {
-      // Left as text: the pipeline's validator records it as malformed.
+      // Left as text: the validator in the pipeline records it as malformed.
     }
     if (choice?.finish_reason === "length") parsed = { __truncated: true, text: text.slice(0, 200) };
-    if (choice?.finish_reason === "content_filter") {
-      return { output: null, servedModel: response.model, refused: { category: "content_filter", explanation: null }, usage, latencyMs };
-    }
     return { output: parsed, servedModel: response.model, usage, latencyMs };
   }
+}
+
+function imagePart(image: VisionImageInput): OpenAI.Chat.Completions.ChatCompletionContentPart {
+  return { type: "image_url", image_url: { url: `data:${image.mediaType};base64,${image.bytes.toString("base64")}`, detail: "high" } };
 }
 
 function costOf(p: ModelPricing | undefined, input: number, output: number): { costUsd?: number } {

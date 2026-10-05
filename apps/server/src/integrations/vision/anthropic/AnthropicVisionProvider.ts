@@ -2,7 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import {
   VisionProviderError,
   type ImageAnalysisRequest,
+  type PairComparisonRequest,
   type ProviderResponse,
+  type VisionImageInput,
   type VisionProvider,
   type VisionProviderInfo,
 } from "../VisionProvider";
@@ -42,7 +44,28 @@ export class AnthropicVisionProvider implements VisionProvider {
     };
   }
 
-  async analyzeImage(req: ImageAnalysisRequest): Promise<ProviderResponse> {
+  analyzeImage(req: ImageAnalysisRequest): Promise<ProviderResponse> {
+    return this.send(req.prompt, req.outputSchema, [
+      imageBlock(req.image),
+      { type: "text", text: "Analyse this photograph according to the instructions and return the JSON object." },
+    ]);
+  }
+
+  comparePair(req: PairComparisonRequest): Promise<ProviderResponse> {
+    return this.send(req.prompt, req.outputSchema, [
+      { type: "text", text: `${req.labels?.[0] ?? "BEFORE"} photo:` },
+      imageBlock(req.before),
+      { type: "text", text: `${req.labels?.[1] ?? "AFTER"} photo:` },
+      imageBlock(req.after),
+      { type: "text", text: "Compare the two photographs according to the instructions and return the JSON object." },
+    ]);
+  }
+
+  private async send(
+    system: string,
+    schema: Record<string, unknown>,
+    content: Anthropic.Beta.BetaContentBlockParam[],
+  ): Promise<ProviderResponse> {
     const started = Date.now();
     let response: Anthropic.Beta.BetaMessage;
     try {
@@ -50,23 +73,9 @@ export class AnthropicVisionProvider implements VisionProvider {
         model: this.opts.model,
         max_tokens: 16000,
         ...(this.opts.fallbacks ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
-        output_config: {
-          effort: this.opts.effort,
-          format: { type: "json_schema", schema: req.outputSchema },
-        },
-        system: req.prompt,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: { type: "base64", media_type: req.image.mediaType, data: req.image.bytes.toString("base64") },
-              },
-              { type: "text", text: "Analyse this photograph according to the instructions and return the JSON object." },
-            ],
-          },
-        ],
+        output_config: { effort: this.opts.effort, format: { type: "json_schema", schema } },
+        system,
+        messages: [{ role: "user", content }],
       });
     } catch (err) {
       throw mapError(err);
@@ -98,7 +107,7 @@ export class AnthropicVisionProvider implements VisionProvider {
     try {
       output = JSON.parse(text);
     } catch {
-      // Left as text: the pipeline's validator records it as malformed.
+      // Left as text: the validator in the pipeline records it as malformed.
     }
     if (response.stop_reason === "max_tokens") output = { __truncated: true, text: text.slice(0, 200) };
     return { output, servedModel: response.model, usage, latencyMs };
@@ -109,6 +118,10 @@ export class AnthropicVisionProvider implements VisionProvider {
     if (!p) return undefined; // unknown model: cost left blank rather than guessed
     return (input * p.input_per_mtok + output * p.output_per_mtok) / 1_000_000;
   }
+}
+
+function imageBlock(image: VisionImageInput): Anthropic.Beta.BetaContentBlockParam {
+  return { type: "image", source: { type: "base64", media_type: image.mediaType, data: image.bytes.toString("base64") } };
 }
 
 /** Map SDK errors onto the PRD §78 categories (most specific first). */

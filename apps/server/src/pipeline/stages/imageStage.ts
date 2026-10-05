@@ -100,6 +100,7 @@ export async function runImageStage(
         sha256: analyzed.fingerprints.sha256,
         perceptualHash: analyzed.fingerprints.dhash,
         fingerprint: analyzed.fingerprints.fingerprint ? Buffer.from(analyzed.fingerprints.fingerprint).toString("base64") : null,
+        colorHist: analyzed.fingerprints.colorHist ? Buffer.from(analyzed.fingerprints.colorHist).toString("base64") : null,
         format: analyzed.metrics.format ?? null,
         width: analyzed.metrics.width ?? null,
         height: analyzed.metrics.height ?? null,

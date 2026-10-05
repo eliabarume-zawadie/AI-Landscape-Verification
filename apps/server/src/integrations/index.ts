@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ConfigError, DEFAULT_VISION_MODEL, type Env } from "../config/env";
 import { AnthropicVisionProvider, type ModelPricing } from "./vision/anthropic/AnthropicVisionProvider";
+import { loadVerificationConfigFromDir } from "../config/verificationConfig";
+import { MOCK_SCENARIOS } from "./netsuite/mock/scenarios";
 import { MockVisionProvider } from "./vision/mock/MockVisionProvider";
 import { OpenAIVisionProvider } from "./vision/openai/OpenAIVisionProvider";
 import type { VisionProvider } from "./vision/VisionProvider";
@@ -33,7 +35,7 @@ export function createIntegrations(env: Env): Integrations {
 }
 
 function createVisionProvider(env: Env): VisionProvider {
-  if (env.MOCK_AI) return new MockVisionProvider();
+  if (env.MOCK_AI) return new MockVisionProvider(MOCK_SCENARIOS, loadVerificationConfigFromDir(env.CONFIG_DIR).registry);
   if (!env.ALLOW_EXTERNAL_AI_IMAGE_PROCESSING) {
     throw new ConfigError(
       `VISION_PROVIDER=${env.VISION_PROVIDER} sends client images to a third-party API. Set ` +

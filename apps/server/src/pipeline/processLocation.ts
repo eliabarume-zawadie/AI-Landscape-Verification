@@ -10,6 +10,7 @@ import type { JobContext, JobHandler } from "./jobHandler";
 import { JOB_TYPES, type ProcessLocationPayload } from "./jobTypes";
 import { runImageStage } from "./stages/imageStage";
 import { runEvidenceStage, servicesToObserve } from "./stages/evidenceStage";
+import { runPairStage } from "./stages/pairStage";
 import { runVisionStage } from "./stages/visionStage";
 
 /**
@@ -106,13 +107,15 @@ export const processLocationHandler: JobHandler = {
     const profile = config.clientProfiles.get(loc.clientCode)!.profile;
     const observe = servicesToObserve(config.registry, profile, services);
     await runVisionStage(ctx, { locationId: loc.id, runId, services: observe, config, actor });
+
+    // ---- Stage: before/after pairing and comparison (Phase 6)
+    const { stageInputs } = await runPairStage(ctx, { locationId: loc.id, runId, services: observe, config, profile, actor });
     await transitionLocation(db, { locationId: loc.id, to: "EVIDENCE_BUILDING", actor, runId });
 
-    // ---- Stage: service evidence (Phase 5). Before/after and scene coverage are not
-    // evaluated until Phase 6, so rules that need them fail closed.
-    await runEvidenceStage(ctx, { locationId: loc.id, runId, services, config, profile, stage: {}, actor });
+    // ---- Stage: service evidence (Phase 5), now with before/after and area coverage.
+    await runEvidenceStage(ctx, { locationId: loc.id, runId, services, config, profile, stage: stageInputs, actor });
 
-    // ---- Stages 6–8 (pairing, bundling, risk) plug in here.
+    // ---- Stages 7–8 (bundling, risk) plug in here.
 
     await finishRun(ctx, {
       locationId: loc.id,

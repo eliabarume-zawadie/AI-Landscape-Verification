@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.6.0] — Phase 6: Before/after intelligence — 2026-10-05
+
+### Added
+- **Stage labels from metadata only** (`domain/stageClassification.ts`): filename words (before/pre… vs after/post/done…; "progress" = DURING) and capture times. Times are used only when the visit's timeline has one dominant gap (two bursts). STRONG = both agree; conflict → UNKNOWN; no signal → UNKNOWN. Upload order is never used, and nothing is inferred from image content (which would turn real counter-evidence into "baseline").
+- **Candidate pairing** (`domain/pairing.ts`): every combination for small locations; otherwise the top-K after-photos per before-photo by a colour-histogram + shift-tolerant structure distance. On mock scenes this distance found the true pair in the top 3 for 44/51 before-photos at the 170-image location (vs 21/51 with structure alone) and for 100% on small locations. Calibrated on synthetic images only; must be re-tuned on real photos.
+- **Pair comparison** by the vision model (new prompt `before_after_v1`; `comparePair` on mock, Claude and OpenAI providers): same area? comparable? per-service change `IMPROVED` / `NO_VISIBLE_CHANGE` / `WORSENED`. Strict validation, one retry, cache, cost tracked. Candidates are tried best-first per before-photo and stop at the first confirmed pair; calls are capped per location.
+- **Distinct areas verified, not estimated**: a new `same_area_v1` check credits an area only when the model confidently says two confirmed pairs show different areas, up to the client's minimum. Budget reserved for these checks.
+- **Evidence engine inputs** (`domain/beforeAfter.ts`):
+  - A before-photo's negative evidence is baseline only if the label is STRONG or the photo is in a model-confirmed pair. A weakly labelled, unpaired "before" still counts against the service.
+  - Before/after is **established** for a service only with a confirmed pair showing `IMPROVED` **and** qualifying positive evidence in the after-photo itself (visible change is not proof).
+  - `NO_VISIBLE_CHANGE` / `WORSENED` becomes counter-evidence on the after-photo.
+- `image_analysis.stage/stage_certainty/stage_signals`; `image_pairs` status, raw response, validation error, served model, cache hit, cost; `images.color_hist`; `BEFORE_AFTER_COMPLETED` audit event; evidence API returns `pairs` (confirmed first, bands only); image list returns each photo's stage.
+- Thresholds **v4** (provisional): `pairing.*`.
+- Migrations `0006`, `0007`.
+
+### Fixed during the phase
+- A first version counted distinct areas as connected components of confirmed pairs. On the 170-image scenario it reported 28 areas for 17 zones: an **overcount** that could falsely satisfy a client's area minimum. Replaced with model-verified distinct areas, after confirming that cheap visual features cannot separate areas (same/different distance distributions overlap).
+- Pair comparisons could use up the call budget before the area checks; the budget is now reserved.
+
+### Outcomes on mock scenarios
+- Demo 1: mowing/edging SUPPORTED/HIGH, shrub pruning SUPPORTED/MEDIUM. Demo 2: all four SUPPORTED/HIGH. Demo 4: CONTRADICTORY (uncut section in an after-photo). Demo 6: SUPPORTED/MEDIUM (duplicates collapse). Demo 9: INSUFFICIENT (before/after show different areas). Fertilization: still never supported from appearance. Every location still goes to human review.
+
+### Verified
+- 321 tests passing.
+
 ## [0.5.0] — Phase 5: Service evidence engine — 2026-10-05
 
 ### Added

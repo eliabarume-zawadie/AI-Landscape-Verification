@@ -46,6 +46,11 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 |---|---|---|---|
 | GET | `/api/locations/:id/evidence` | REVIEWER | `?runId=` (default current). Per service: `status`, `confidence`, `humanRequired`, `reasons`, `explanation`, `components`, `supporting`/`contradicting`/`context` items (`ref`, `evidenceType`, `strength` as HIGH/MEDIUM/LOW, `observation`), `contradictions` with image refs. Never returns raw scores |
 
+### Phase 6
+
+- `GET /api/locations/:id/evidence` now also returns `pairs`: `status`, `beforeRef`/`afterRef` (+ image IDs), `sameAreaConfidence` (band), `notes`, `changes` (`service`, `direction`, `strength` band, `description`). Confirmed pairs first.
+- `GET /api/locations/:id/images` analysis now includes `stage`, `stageCertainty`, `analysisStatus`.
+
 ## Planned (PRD §76)
 
 | Method | Path | Phase |

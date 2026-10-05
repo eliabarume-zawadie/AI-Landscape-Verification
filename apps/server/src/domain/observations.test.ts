@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadVerificationConfigFromDir } from "../config/verificationConfig";
 import { CONFIG_DIR } from "../test/helpers";
-import { imageAnalysisJsonSchema, validateImageAnalysis } from "./observations";
+import { imageAnalysisJsonSchema, validateAreaCheck, validateImageAnalysis, validatePairComparison } from "./observations";
 
 const { registry } = loadVerificationConfigFromDir(CONFIG_DIR);
 const ctx = { registry, requestedServices: ["mowing", "edging", "landscape_fertilization"] };
@@ -104,5 +104,47 @@ describe("imageAnalysisJsonSchema", () => {
   it("has no field for a status, decision, or approval", () => {
     const text = JSON.stringify(imageAnalysisJsonSchema(registry, ["mowing", "edging"]));
     for (const forbidden of ["status", "approve", "decision", "recommend", "confidence"]) expect(text).not.toContain(forbidden);
+  });
+});
+
+describe("validatePairComparison", () => {
+  const pairOut = (over: Record<string, unknown> = {}) => ({
+    same_area: true,
+    same_area_confidence: 0.9,
+    comparison_possible: true,
+    changes: [{ service: "mowing", direction: "IMPROVED", strength: 0.9, description: "grass shorter" }],
+    notes: "same fence and path",
+    ...over,
+  });
+
+  it("accepts a valid comparison", () => {
+    const r = validatePairComparison(pairOut(), { requestedServices: ["mowing"] });
+    expect(r.ok && r.value).toMatchObject({ sameArea: true, changes: [{ service: "mowing", direction: "IMPROVED" }] });
+  });
+
+  it("drops changes for a different-area or non-comparable pair", () => {
+    for (const over of [{ same_area: false }, { comparison_possible: false }]) {
+      const r = validatePairComparison(pairOut(over), { requestedServices: ["mowing"] });
+      expect(r.ok && r.value.changes).toEqual([]);
+    }
+  });
+
+  it("drops unrequested services and bad strengths; rejects bad structure", () => {
+    const r = validatePairComparison(
+      pairOut({ changes: [{ service: "edging", direction: "IMPROVED", strength: 0.9, description: "x" }, { service: "mowing", direction: "IMPROVED", strength: 3, description: "x" }] }),
+      { requestedServices: ["mowing"] },
+    );
+    expect(r.ok && r.value.changes).toEqual([]);
+    expect(validatePairComparison(pairOut({ same_area_confidence: 7 }), { requestedServices: [] }).ok).toBe(false);
+    expect(validatePairComparison({ same_area: true }, { requestedServices: [] }).ok).toBe(false);
+    expect(validatePairComparison(pairOut({ changes: [{ service: "mowing", direction: "DONE", strength: 0.9, description: "x" }] }), { requestedServices: ["mowing"] }).ok).toBe(false);
+  });
+});
+
+describe("validateAreaCheck", () => {
+  it("accepts a well-formed answer and rejects malformed ones", () => {
+    expect(validateAreaCheck({ same_area: false, same_area_confidence: 0.9, notes: "different buildings" })).toMatchObject({ ok: true });
+    expect(validateAreaCheck({ same_area: false, same_area_confidence: 1.5, notes: "" }).ok).toBe(false);
+    expect(validateAreaCheck("nope").ok).toBe(false);
   });
 });

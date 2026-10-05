@@ -10,7 +10,8 @@ import type { Logger } from "../pipeline/jobHandler";
 import type { Worker } from "../pipeline/worker";
 import { createWorker, type Runtime } from "../runtime";
 import { ingestQueue } from "../services/ingest";
-import { createTestDb, testEnv } from "./helpers";
+import { loadVerificationConfigFromDir } from "../config/verificationConfig";
+import { CONFIG_DIR, createTestDb, testEnv } from "./helpers";
 
 export const silentLog: Logger = { info() {}, warn() {}, error() {} };
 
@@ -37,7 +38,7 @@ export async function createHarness(
   const queue = new PgQueue(h.db, { baseMs: 0, capMs: 0 }, () => 0);
   const images = new MockImageProvider(opts.scenarios ?? MOCK_SCENARIOS);
   const storage = new MemoryStorageProvider();
-  const vision = new MockVisionProvider(opts.scenarios ?? MOCK_SCENARIOS);
+  const vision = new MockVisionProvider(opts.scenarios ?? MOCK_SCENARIOS, loadVerificationConfigFromDir(CONFIG_DIR).registry);
   const runtime: Runtime = { queue, integrations: { netsuite, images, storage, vision } };
   const worker = createWorker(env, h.db, runtime, silentLog, { pollNetSuite: false });
   return {

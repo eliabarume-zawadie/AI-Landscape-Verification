@@ -61,6 +61,9 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
         duplicateGroup: imageAnalysis.duplicateGroup,
         isDuplicateRepresentative: imageAnalysis.isDuplicateRepresentative,
         duplicateKind: imageAnalysis.duplicateKind,
+        stage: imageAnalysis.stage,
+        stageCertainty: imageAnalysis.stageCertainty,
+        analysisStatus: imageAnalysis.analysisStatus,
       })
       .from(images)
       .leftJoin(imageAnalysis, and(eq(imageAnalysis.imageId, images.id), eq(imageAnalysis.runId, runId ?? images.id)))
@@ -80,6 +83,9 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
               duplicateGroup: r.duplicateGroup,
               isDuplicateRepresentative: r.isDuplicateRepresentative,
               duplicateKind: r.duplicateKind,
+              stage: r.stage,
+              stageCertainty: r.stageCertainty,
+              analysisStatus: r.analysisStatus,
             },
     }));
     const analysed = items.filter((i) => i.analysis);
@@ -92,7 +98,20 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
         uniqueClusters: new Set(analysed.map((i) => i.analysis!.duplicateGroup)).size,
         duplicates: analysed.filter((i) => !i.analysis!.isDuplicateRepresentative).length,
       },
-      items: items.map(({ qualityScore: _q, usable: _u, qualityIssues: _i, duplicateGroup: _g, isDuplicateRepresentative: _r, duplicateKind: _k, ...rest }) => rest),
+      items: items.map(
+        ({
+          qualityScore: _q,
+          usable: _u,
+          qualityIssues: _i,
+          duplicateGroup: _g,
+          isDuplicateRepresentative: _r,
+          duplicateKind: _k,
+          stage: _s,
+          stageCertainty: _c,
+          analysisStatus: _a,
+          ...rest
+        }) => rest,
+      ),
     };
   });
 

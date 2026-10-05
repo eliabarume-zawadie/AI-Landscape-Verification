@@ -165,6 +165,22 @@ export const thresholdsSchema = z
       /** Negative evidence at or above this strength contradicts positive evidence. */
       counter_evidence_min_strength: unitInterval,
     }),
+    pairing: z.object({
+      /** Capture-time split: the dominant gap must be at least this long… */
+      min_time_gap_minutes: z.number().positive(),
+      /** …and at least this many times longer than the next-largest gap. */
+      time_gap_dominance_ratio: z.number().min(1),
+      /** Below this many before×after combinations, every combination is checked. */
+      max_full_pairs: z.number().int().min(1),
+      /** Otherwise, the top-K visually closest after photos per before photo. */
+      candidates_per_before: z.number().int().min(1),
+      /** Weight of the structural (greyscale, shift-tolerant) distance vs. the colour histogram. */
+      structure_weight: z.number().min(0),
+      /** Hard cap on pair comparisons per location (cost control). */
+      max_pair_calls: z.number().int().min(1),
+      /** Model's same-area confidence needed to accept a pair. */
+      min_same_area_confidence: unitInterval,
+    }),
     risk: z.object({ medium_at: unitInterval, high_at: unitInterval }),
     metrics: z.object({ min_sample_size: z.number().int().positive() }),
   })

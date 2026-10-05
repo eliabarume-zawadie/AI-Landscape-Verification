@@ -78,6 +78,24 @@ Pure function `assessService(ctx, service)` in `domain/evidence.ts`. Per require
 
 Explanations are deterministic templates that cite image refs. No LLM writes them.
 
+## Before/after stage (implemented, Phase 6)
+
+```text
+stages (metadata) → candidates (visual shortlist) → pair comparison (model) → distinct-area check (model) → engine inputs
+```
+
+| Step | Rule |
+|---|---|
+| Stage | Filename words + capture-time split (one dominant gap ≥ `min_time_gap_minutes` and ≥ `time_gap_dominance_ratio` × next gap). STRONG when both agree; conflict/none → UNKNOWN. Never from image content or upload order |
+| Candidates | Eligible BEFORE × AFTER photos. All combinations up to `max_full_pairs`, else top `candidates_per_before` by colour histogram L1 + `structure_weight` × shift-tolerant structure distance |
+| Compare | `comparePair` with `before_after_v1`: `same_area`, `same_area_confidence`, `comparison_possible`, per-service `IMPROVED`/`NO_VISIBLE_CHANGE`/`WORSENED`. Confirmed = same area, comparable, confidence ≥ `min_same_area_confidence` |
+| Distinct areas | `same_area_v1` check between confirmed pairs' after-photos; credited only on a confident "different", up to the client's `min_distinct_scenes` |
+| Baseline | BEFORE photo with STRONG label, or in a confirmed pair → its negative evidence is baseline context, and it cannot support |
+| Established | Confirmed pair + `IMPROVED` ≥ medium + qualifying positive evidence in the after-photo |
+| Counter | `NO_VISIBLE_CHANGE`/`WORSENED` ≥ `counter_evidence_min_strength` → negative evidence on the after-photo |
+
+Pair statuses: `CONFIRMED`, `NOT_SAME_AREA`, `NOT_COMPARABLE`, `LOW_CONFIDENCE`, `MALFORMED`, `REFUSED`. All evaluated pairs are stored and shown to reviewers.
+
 ## Division of responsibility
 
 | Vision model (non-deterministic) | ALVIP code (deterministic, tested, versioned) |

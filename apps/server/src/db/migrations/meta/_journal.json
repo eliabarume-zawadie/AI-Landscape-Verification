@@ -43,6 +43,20 @@
       "when": 1791198589201,
       "tag": "0005_assessment_components",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791199813703,
+      "tag": "0006_color_hist",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791200044086,
+      "tag": "0007_before_after",
+      "breakpoints": true
     }
   ]
 }

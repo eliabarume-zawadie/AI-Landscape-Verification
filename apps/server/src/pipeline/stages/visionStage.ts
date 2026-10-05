@@ -257,7 +257,7 @@ export async function runVisionStage(
 }
 
 /** Bounded JPEG copy for the model (handles HEIC via openImage). */
-async function prepareForVision(bytes: Buffer, maxSide: number): Promise<Buffer> {
+export async function prepareForVision(bytes: Buffer, maxSide: number): Promise<Buffer> {
   const opened = await openImage(bytes, { maxInputPixels: 50_000_000 });
   return opened
     .image()

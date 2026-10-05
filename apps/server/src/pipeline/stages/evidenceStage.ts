@@ -95,6 +95,7 @@ export async function runEvidenceStage(
             runId: input.runId,
             serviceCode: a.service,
             imageId: i.imageId,
+            imagePairId: i.imagePairId ?? null,
             role,
             evidenceType: i.evidenceType,
             strength: i.strength,
@@ -125,7 +126,10 @@ export async function runEvidenceStage(
         thresholdsVersion: input.config.thresholds.version,
         stageInputs: {
           beforeAfterEvaluated: input.stage.beforeAfterEstablished !== undefined,
+          beforeAfterEstablished: input.stage.beforeAfterEstablished ? [...input.stage.beforeAfterEstablished].sort() : null,
           sceneCoverageEvaluated: input.stage.distinctScenes !== undefined,
+          distinctAreas: input.stage.distinctScenes ?? null,
+          baselineBeforePhotos: input.stage.beforeImageIds?.size ?? 0,
         },
       },
     });

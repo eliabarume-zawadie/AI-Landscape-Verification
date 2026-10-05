@@ -182,3 +182,162 @@ export function imageAnalysisJsonSchema(registry: ServiceRegistry, services: rea
     },
   };
 }
+
+// ------------------------------------------------------------------ before/after comparison
+
+/**
+ * What a vision model may report about a candidate BEFORE/AFTER pair (PRD §19).
+ * "IMPROVED" describes a visible change only — it is never proof of service on its own.
+ */
+export const CHANGE_DIRECTIONS = ["IMPROVED", "NO_VISIBLE_CHANGE", "WORSENED"] as const;
+export type ChangeDirection = (typeof CHANGE_DIRECTIONS)[number];
+
+export const pairComparisonOutputSchema = z.object({
+  same_area: z.boolean(),
+  same_area_confidence: z.number(),
+  comparison_possible: z.boolean(),
+  changes: z.array(
+    z.object({
+      service: z.string(),
+      direction: z.enum(CHANGE_DIRECTIONS),
+      strength: z.number(),
+      description: z.string(),
+    }),
+  ),
+  notes: z.string(),
+});
+
+export interface ServiceChange {
+  service: string;
+  direction: ChangeDirection;
+  strength: number;
+  description: string;
+}
+
+export interface ValidatedPairComparison {
+  sameArea: boolean;
+  sameAreaConfidence: number;
+  comparisonPossible: boolean;
+  changes: ServiceChange[];
+  notes: string;
+}
+
+export type PairValidationResult =
+  | { ok: true; value: ValidatedPairComparison; warnings: string[] }
+  | { ok: false; error: string };
+
+export function validatePairComparison(raw: unknown, ctx: { requestedServices: readonly string[] }): PairValidationResult {
+  const parsed = pairComparisonOutputSchema.safeParse(typeof raw === "string" ? safeJson(raw) : raw);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues.slice(0, 5).map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; "),
+    };
+  }
+  const out = parsed.data;
+  const warnings: string[] = [];
+  if (!Number.isFinite(out.same_area_confidence) || out.same_area_confidence < 0 || out.same_area_confidence > 1) {
+    return { ok: false, error: `same_area_confidence ${out.same_area_confidence} outside 0–1` };
+  }
+  const requested = new Set(ctx.requestedServices);
+  const best = new Map<string, ServiceChange>();
+  for (const c of out.changes) {
+    const where = `${c.service}/${c.direction}`;
+    if (!requested.has(c.service)) {
+      warnings.push(`dropped ${where}: service not requested`);
+      continue;
+    }
+    if (!Number.isFinite(c.strength) || c.strength < 0 || c.strength > 1) {
+      warnings.push(`dropped ${where}: strength ${c.strength} outside 0–1`);
+      continue;
+    }
+    if (!c.description.trim()) {
+      warnings.push(`dropped ${where}: no description`);
+      continue;
+    }
+    if (!out.same_area || !out.comparison_possible) {
+      warnings.push(`dropped ${where}: photos are not a comparable same-area pair`);
+      continue;
+    }
+    const prev = best.get(c.service);
+    if (!prev || c.strength > prev.strength) {
+      best.set(c.service, { service: c.service, direction: c.direction, strength: c.strength, description: c.description.trim().slice(0, MAX_TEXT) });
+    }
+  }
+  return {
+    ok: true,
+    warnings,
+    value: {
+      sameArea: out.same_area,
+      sameAreaConfidence: out.same_area_confidence,
+      comparisonPossible: out.comparison_possible,
+      changes: [...best.values()],
+      notes: out.notes.trim().slice(0, MAX_TEXT),
+    },
+  };
+}
+
+export function pairComparisonJsonSchema(services: readonly string[]): Record<string, unknown> {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["same_area", "same_area_confidence", "comparison_possible", "changes", "notes"],
+    properties: {
+      same_area: { type: "boolean" },
+      same_area_confidence: { type: "number" },
+      comparison_possible: { type: "boolean" },
+      changes: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["service", "direction", "strength", "description"],
+          properties: {
+            service: { type: "string", enum: [...services].sort() },
+            direction: { type: "string", enum: [...CHANGE_DIRECTIONS] },
+            strength: { type: "number" },
+            description: { type: "string" },
+          },
+        },
+      },
+      notes: { type: "string" },
+    },
+  };
+}
+
+// ------------------------------------------------------------------ same-area check
+
+export const areaCheckOutputSchema = z.object({
+  same_area: z.boolean(),
+  same_area_confidence: z.number(),
+  notes: z.string(),
+});
+
+export interface ValidatedAreaCheck {
+  sameArea: boolean;
+  confidence: number;
+  notes: string;
+}
+
+export function validateAreaCheck(raw: unknown): { ok: true; value: ValidatedAreaCheck } | { ok: false; error: string } {
+  const parsed = areaCheckOutputSchema.safeParse(typeof raw === "string" ? safeJson(raw) : raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues.slice(0, 5).map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; ") };
+  }
+  const c = parsed.data.same_area_confidence;
+  if (!Number.isFinite(c) || c < 0 || c > 1) return { ok: false, error: `same_area_confidence ${c} outside 0–1` };
+  return { ok: true, value: { sameArea: parsed.data.same_area, confidence: c, notes: parsed.data.notes.trim().slice(0, MAX_TEXT) } };
+}
+
+export function areaCheckJsonSchema(): Record<string, unknown> {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["same_area", "same_area_confidence", "notes"],
+    properties: {
+      same_area: { type: "boolean" },
+      same_area_confidence: { type: "number" },
+      notes: { type: "string" },
+    },
+  };
+}

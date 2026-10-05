@@ -241,6 +241,8 @@ export const images = pgTable(
     perceptualHash: text("perceptual_hash"),
     /** 32×32 greyscale thumbnail, base64 — confirms near-duplicates (see domain/dedup.ts). */
     fingerprint: text("fingerprint"),
+    /** 64-bin RGB histogram, base64 — shortlists before/after candidates. */
+    colorHist: text("color_hist"),
     contentType: text("content_type"),
     format: text("format"),
     width: integer("width"),
@@ -325,6 +327,10 @@ export const imageAnalysis = pgTable(
     analysisStatus: text("analysis_status"),
     /** Model that actually answered (may differ from the configured one after a fallback). */
     servedModel: text("served_model"),
+    /** Before/after stage from metadata only (BEFORE | AFTER | DURING | UNKNOWN). */
+    stage: text("stage"),
+    stageCertainty: text("stage_certainty"),
+    stageSignals: jsonb("stage_signals"),
     cacheHit: boolean("cache_hit").notNull().default(false),
     costUsd: numeric("cost_usd", { precision: 12, scale: 6 }),
     latencyMs: integer("latency_ms"),
@@ -343,6 +349,13 @@ export const imagePairs = pgTable(
     pairingScore: real("pairing_score").notNull(),
     pairingSignals: jsonb("pairing_signals").notNull(),
     changeAnalysis: jsonb("change_analysis"),
+    /** CONFIRMED | NOT_SAME_AREA | NOT_COMPARABLE | LOW_CONFIDENCE | MALFORMED | REFUSED */
+    status: text("status"),
+    rawResponse: jsonb("raw_response"),
+    validationError: text("validation_error"),
+    servedModel: text("served_model"),
+    cacheHit: boolean("cache_hit").notNull().default(false),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("image_pairs_uq").on(t.runId, t.beforeImageId, t.afterImageId)],

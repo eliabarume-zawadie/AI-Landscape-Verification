@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { loadActiveConfig } from "../../config/configStore";
-import { contradictions, evidence, images, locations, processingRuns, serviceAssessments } from "../../db/schema";
+import { contradictions, evidence, imagePairs, images, locations, processingRuns, serviceAssessments } from "../../db/schema";
 import { band } from "../../domain/evidence";
+import type { ValidatedPairComparison } from "../../domain/observations";
 import { requireUser } from "../../http/authPlugin";
 import type { AppContext } from "../../http/context";
 
@@ -33,7 +34,7 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!run) return reply.code(404).send({ error: "NOT_FOUND" });
 
     const config = await loadActiveConfig(ctx.db);
-    const [assessments, items, conflicts] = await Promise.all([
+    const [assessments, items, conflicts, pairRows] = await Promise.all([
       ctx.db.select().from(serviceAssessments).where(eq(serviceAssessments.runId, runId)).orderBy(asc(serviceAssessments.serviceCode)),
       ctx.db
         .select({
@@ -49,13 +50,42 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
         .innerJoin(images, eq(images.id, evidence.imageId))
         .where(eq(evidence.runId, runId)),
       ctx.db.select().from(contradictions).where(eq(contradictions.runId, runId)),
+      ctx.db.select().from(imagePairs).where(eq(imagePairs.runId, runId)),
     ]);
+    const pairImageIds = [...new Set(pairRows.flatMap((p) => [p.beforeImageId, p.afterImageId]))];
+    const pairRefs = new Map(
+      pairImageIds.length
+        ? (await ctx.db.select({ id: images.id, ref: images.externalRef }).from(images).where(inArray(images.id, pairImageIds))).map((r) => [r.id, r.ref])
+        : [],
+    );
     const refOf = new Map(items.map((i) => [i.imageId, i.ref]));
 
     return {
       runId,
       runNumber: run.runNumber,
       thresholdsProvisional: config.thresholds.provisional,
+      /** Before/after pairs evaluated for this run, confirmed first (PRD §24). */
+      pairs: pairRows
+        .map((p) => {
+          const c = p.changeAnalysis as ValidatedPairComparison | null;
+          return {
+            id: p.id,
+            status: p.status,
+            beforeImageId: p.beforeImageId,
+            beforeRef: pairRefs.get(p.beforeImageId) ?? null,
+            afterImageId: p.afterImageId,
+            afterRef: pairRefs.get(p.afterImageId) ?? null,
+            sameAreaConfidence: c ? band(c.sameAreaConfidence, config.thresholds) : null,
+            notes: c?.notes ?? null,
+            changes: (c?.changes ?? []).map((ch) => ({
+              service: ch.service,
+              direction: ch.direction,
+              strength: band(ch.strength, config.thresholds),
+              description: ch.description,
+            })),
+          };
+        })
+        .sort((a, b) => Number(b.status === "CONFIRMED") - Number(a.status === "CONFIRMED") || (a.beforeRef ?? "").localeCompare(b.beforeRef ?? "")),
       services: assessments.map((a) => {
         const mine = items
           .filter((i) => i.serviceCode === a.serviceCode)

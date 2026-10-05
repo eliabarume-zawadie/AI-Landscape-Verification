@@ -16,6 +16,8 @@ export interface PromptTemplate {
 }
 
 export const IMAGE_ANALYSIS_PROMPT = { name: "image_analysis", version: "v1" } as const;
+export const BEFORE_AFTER_PROMPT = { name: "before_after", version: "v1" } as const;
+export const SAME_AREA_PROMPT = { name: "same_area", version: "v1" } as const;
 
 export function loadPrompt(promptsDir: string, ref: { name: string; version: string }): PromptTemplate {
   const file = path.join(promptsDir, `${ref.name}_${ref.version}.md`);
@@ -74,6 +76,10 @@ export function renderServicesSection(services: readonly ServiceDefinition[]): s
     })
     .join("\n\n");
 }
+
+/** Both prompt templates take a {{SERVICES}} section rendered from the active rules. */
+export const renderPairComparisonPrompt = (p: PromptTemplate, services: readonly ServiceDefinition[]) =>
+  renderImageAnalysisPrompt(p, services);
 
 export function renderImageAnalysisPrompt(p: PromptTemplate, services: readonly ServiceDefinition[]): string {
   if (!p.template.includes("{{SERVICES}}")) throw new ConfigError(`Prompt ${p.name}_${p.version} lacks {{SERVICES}}`);

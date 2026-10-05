@@ -1,7 +1,7 @@
 {
-  "version": "thresholds-v3",
+  "version": "thresholds-v4",
   "provisional": true,
-  "_note": "PROVISIONAL placeholders (IMPLEMENTATION_PLAN A7). Replace with values derived from golden-dataset evaluation before any rollout. v3 adds evidence aggregation settings.",
+  "_note": "PROVISIONAL placeholders (IMPLEMENTATION_PLAN A7). Replace with values derived from golden-dataset evaluation before any rollout. v4 adds before/after pairing settings.",
   "confidence_bands": { "high": 0.85, "medium": 0.6 },
   "quality": {
     "min_usable_score": 0.5,
@@ -15,6 +15,15 @@
   },
   "duplicates": { "near_duplicate_hamming_max": 10, "near_duplicate_mad_max": 6 },
   "evidence": { "min_independent_images_for_high": 2, "counter_evidence_min_strength": 0.6 },
+  "pairing": {
+    "min_time_gap_minutes": 20,
+    "time_gap_dominance_ratio": 3,
+    "max_full_pairs": 40,
+    "candidates_per_before": 3,
+    "structure_weight": 0.02,
+    "max_pair_calls": 60,
+    "min_same_area_confidence": 0.8
+  },
   "risk": { "medium_at": 0.3, "high_at": 0.6 },
   "metrics": { "min_sample_size": 30 }
 }

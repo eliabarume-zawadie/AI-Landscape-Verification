@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import sharp from "sharp";
+import sharp, { type Sharp } from "sharp";
 import type { ImageMetrics } from "../domain/quality";
 import { openImage, type HeicDecoder } from "./imageDecode";
 
@@ -9,6 +9,8 @@ export interface ImageFingerprints {
   dhash: string | null;
   /** 32×32 greyscale thumbnail; null when not decodable. */
   fingerprint: Uint8Array | null;
+  /** 64-bin RGB histogram (4 levels per channel), each bin scaled to 0–255; null when not decodable. */
+  colorHist: Uint8Array | null;
 }
 
 export interface AnalyzedImage {
@@ -57,6 +59,7 @@ export async function analyzeImageBytes(
     };
     const dhashRaw = await greyResize(9, 8);
     const fingerprint = new Uint8Array(await greyResize(32, 32));
+    const colorHist = await colorHistogram(opened.image());
 
     return {
       metrics: {
@@ -71,14 +74,24 @@ export async function analyzeImageBytes(
         darkFraction: round2(darkFraction),
         brightFraction: round2(brightFraction),
       },
-      fingerprints: { sha256, dhash: dhashFrom(dhashRaw), fingerprint },
+      fingerprints: { sha256, dhash: dhashFrom(dhashRaw), fingerprint, colorHist },
     };
   } catch (err) {
     return {
       metrics: { ...base, decodable: false, decodeError: (err as Error).message.slice(0, 300) },
-      fingerprints: { sha256, dhash: null, fingerprint: null },
+      fingerprints: { sha256, dhash: null, fingerprint: null, colorHist: null },
     };
   }
+}
+
+/** Shift-invariant colour signature used to shortlist before/after candidates. */
+async function colorHistogram(image: Sharp): Promise<Uint8Array> {
+  const { data, info } = await image.resize(64, 64, { fit: "fill" }).removeAlpha().toColourspace("srgb").raw().toBuffer({ resolveWithObject: true });
+  if (info.channels !== 3) throw new Error(`expected 3 colour channels, got ${info.channels}`);
+  const counts = new Float64Array(64);
+  for (let i = 0; i < data.length; i += 3) counts[(data[i]! >> 6) * 16 + (data[i + 1]! >> 6) * 4 + (data[i + 2]! >> 6)]! += 1;
+  const n = data.length / 3;
+  return Uint8Array.from(counts, (c) => Math.round((c / n) * 255));
 }
 
 function luminanceStats(gray: Buffer) {

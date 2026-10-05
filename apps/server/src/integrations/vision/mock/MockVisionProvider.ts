@@ -1,7 +1,9 @@
+import type { ServiceRegistry } from "../../../domain/serviceRegistry";
 import { MOCK_SCENARIOS, type MockImageSpec, type MockScenario } from "../../netsuite/mock/scenarios";
 import {
   VisionProviderError,
   type ImageAnalysisRequest,
+  type PairComparisonRequest,
   type ProviderResponse,
   type VisionProvider,
 } from "../VisionProvider";
@@ -20,10 +22,15 @@ const STRENGTH = 0.9;
 export class MockVisionProvider implements VisionProvider {
   readonly info = { provider: "mock", model: "mock-vision", modelVersion: "1", external: false };
   readonly calls: string[] = [];
+  readonly pairCalls: MockPairCall[] = [];
   private readonly specs = new Map<string, { scenario: MockScenario; spec: MockImageSpec }>();
   private readonly malformedOnceSeen = new Set<string>();
 
-  constructor(scenarios: MockScenario[] = MOCK_SCENARIOS) {
+  /** Optional service registry: lets comparePair tell positive from negative signals. */
+  constructor(
+    scenarios: MockScenario[] = MOCK_SCENARIOS,
+    private readonly registry?: ServiceRegistry,
+  ) {
     for (const scenario of scenarios) {
       for (const spec of [...scenario.images, ...(scenario.imagesAddedLater ?? [])]) this.specs.set(spec.ref, { scenario, spec });
     }
@@ -85,6 +92,67 @@ export class MockVisionProvider implements VisionProvider {
       },
     };
   }
+
+  /**
+   * Same area = same mock scene. Per requested service: negative signal in the AFTER
+   * photo → NO_VISIBLE_CHANGE (work not done there); negative before + positive after →
+   * IMPROVED. Nothing else is reported.
+   */
+  async comparePair(req: PairComparisonRequest): Promise<ProviderResponse> {
+    this.pairCalls.push({ before: req.before.externalRef, after: req.after.externalRef });
+    const base = { servedModel: this.info.model, usage: { inputTokens: 3200, outputTokens: 200, costUsd: 0 }, latencyMs: 5 };
+    const before = this.specs.get(req.before.externalRef);
+    const after = this.specs.get(req.after.externalRef);
+    if (!before || !after) {
+      return { ...base, output: { same_area: false, same_area_confidence: 0.9, comparison_possible: false, changes: [], notes: "Unknown photos." } };
+    }
+    if (before.scenario.failures?.vision === "OUTAGE") {
+      throw new VisionProviderError("Mock vision provider unavailable (simulated outage)", "TRANSIENT");
+    }
+    if (req.services.length === 0) {
+      const same = before.spec.scene === after.spec.scene;
+      return { ...base, output: { same_area: same, same_area_confidence: 0.93, notes: same ? "Same landmarks." : "Different landmarks." } };
+    }
+    if (before.spec.scene !== after.spec.scene) {
+      return {
+        ...base,
+        output: {
+          same_area: false,
+          same_area_confidence: 0.92,
+          comparison_possible: false,
+          changes: [],
+          notes: `Different landmarks: ${before.spec.scene.replaceAll("_", " ")} vs ${after.spec.scene.replaceAll("_", " ")}.`,
+        },
+      };
+    }
+    const polarity = (service: string, type: string) =>
+      this.registry?.has(service) ? this.registry.get(service).evidence_types.find((e) => e.type === type)?.polarity : undefined;
+    const has = (spec: MockImageSpec, service: string, p: string) => (spec.signals?.[service] ?? []).some((t) => polarity(service, t) === p);
+
+    const changes = [];
+    for (const service of req.services) {
+      if (has(after.spec, service, "negative")) {
+        changes.push({ service, direction: "NO_VISIBLE_CHANGE", strength: 0.85, description: `The ${service.replaceAll("_", " ")} area still needs work in the after photo.` });
+      } else if (has(before.spec, service, "negative") && has(after.spec, service, "positive")) {
+        changes.push({ service, direction: "IMPROVED", strength: 0.9, description: `Visible improvement for ${service.replaceAll("_", " ")} between the photos.` });
+      }
+    }
+    return {
+      ...base,
+      output: {
+        same_area: true,
+        same_area_confidence: 0.95,
+        comparison_possible: true,
+        changes,
+        notes: `Same ${before.spec.scene.replaceAll("_", " ")} landmarks in both photos.`,
+      },
+    };
+  }
+}
+
+export interface MockPairCall {
+  before: string;
+  after: string;
 }
 
 function notRelevant(summary: string) {

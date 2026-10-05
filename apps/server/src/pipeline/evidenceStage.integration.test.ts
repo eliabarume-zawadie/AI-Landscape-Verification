@@ -38,12 +38,17 @@ afterAll(async () => {
   await t.close();
 });
 
-describe("evidence stage (Phase 5, before/after not yet evaluated)", () => {
-  it("assesses every required service and never auto-decides", async () => {
+describe("evidence stage", () => {
+  it("assesses every required service; the location still goes to a human", async () => {
     const a = await assessmentsOf("NS-DEMO-002");
     expect(Object.keys(a).sort()).toEqual(["edging", "mowing", "shrub_pruning", "weed_removal"]);
-    for (const r of Object.values(a)) expect(r.humanRequired).toBe(true);
-    expect((await loc("NS-DEMO-002")).status).toBe("HUMAN_REVIEW");
+    // With before/after established, strong services need no extra scrutiny…
+    expect(a.mowing).toMatchObject({ status: "SUPPORTED", confidenceLevel: "HIGH", humanRequired: false });
+    // …but nothing is auto-decided: a person makes the final decision (PRD §27).
+    const l = await loc("NS-DEMO-002");
+    expect(l.status).toBe("HUMAN_REVIEW");
+    const [run] = await t.h.db.select().from(processingRuns).where(eq(processingRuns.id, l.currentRunId!));
+    expect(run!.aiRecommendation).toBe("NEEDS_HUMAN_REVIEW");
   });
 
   it("demo case 4: flags the uncut section as a contradiction and records the image pair", async () => {
@@ -80,18 +85,18 @@ describe("evidence stage (Phase 5, before/after not yet evaluated)", () => {
     expect(a.landscape_maintenance!.status).not.toBe("SUPPORTED");
   });
 
-  it("fails closed on before/after until Phase 6 — explicitly, with a reason", async () => {
-    const { mowing } = await assessmentsOf("NS-DEMO-001");
-    expect(mowing!.status).not.toBe("SUPPORTED");
+  it("records which stage inputs were evaluated", async () => {
     const [ev] = await t.h.db
       .select({ data: auditEvents.data })
       .from(auditEvents)
       .where(and(eq(auditEvents.runId, (await loc("NS-DEMO-001")).currentRunId!), eq(auditEvents.eventType, "EVIDENCE_GENERATED")));
-    expect(ev!.data).toMatchObject({ stageInputs: { beforeAfterEvaluated: false, sceneCoverageEvaluated: false } });
+    expect(ev!.data).toMatchObject({
+      stageInputs: { beforeAfterEvaluated: true, beforeAfterEstablished: ["edging", "mowing", "shrub_pruning"], sceneCoverageEvaluated: true },
+    });
   });
 
   it("stores supporting, contradicting and context evidence per image", async () => {
-    const l = await loc("NS-DEMO-002");
+    const l = await loc("NS-DEMO-004");
     const rows = await t.h.db.select().from(evidence).where(eq(evidence.runId, l.currentRunId!));
     expect(new Set(rows.map((r) => r.role))).toEqual(new Set(["SUPPORTING", "CONTRADICTING", "CONTEXT"]));
     expect(rows.every((r) => r.imageId && r.observation)).toBe(true);
