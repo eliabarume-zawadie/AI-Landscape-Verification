@@ -9,3 +9,4 @@ coverage/
 
 # Third-party HEIC test sample (download with apps/server/src/scripts/fetchHeicFixture.ts)
 fixtures/heic/*.heic
+apps/web/dist/

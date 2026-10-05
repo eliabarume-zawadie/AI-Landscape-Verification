@@ -21,6 +21,8 @@
 | Retention | Image bytes purged after `IMAGE_RETENTION_DAYS` for finished locations (`IMAGES_PURGED` audit) |
 | External AI | No image leaves the system unless `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true` is set explicitly (startup refuses otherwise); runs and audit events record `externalProvider` |
 | AI output | Treated as untrusted input: schema- and registry-validated, size-limited, never executed, never able to set a status or decision |
+| UI | Content-Security-Policy (`default-src 'self'`, no third-party scripts, styles or fonts; fonts self-hosted), `frame-ancestors 'none'`; HTML and API never cached; images loaded only through the authenticated content endpoint |
+| Decisions | Human reviews are append-only (DB trigger); escalated locations require a team lead; concurrent decisions rejected (409) |
 | Unsafe automation | `AUTOMATION_LEVEL` > 3 refused at startup |
 
 ## Planned

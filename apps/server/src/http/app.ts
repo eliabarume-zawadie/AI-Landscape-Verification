@@ -1,4 +1,7 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import cookie from "@fastify/cookie";
+import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance } from "fastify";
 import { sql } from "drizzle-orm";
 import { adminRoutes } from "../modules/admin/routes";
@@ -7,6 +10,7 @@ import { configRoutes } from "../modules/config/routes";
 import { evidenceRoutes } from "../modules/evidence/routes";
 import { imageRoutes } from "../modules/images/routes";
 import { locationRoutes } from "../modules/locations/routes";
+import { reviewRoutes } from "../modules/reviews/routes";
 import { registerAuth } from "./authPlugin";
 import type { AppContext } from "./context";
 
@@ -28,11 +32,19 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await registerAuth(app, ctx);
 
   // Baseline security headers (HTTPS is terminated upstream; see docs/SECURITY.md).
-  app.addHook("onSend", async (_req, reply) => {
+  app.addHook("onSend", async (req, reply) => {
     reply.header("X-Content-Type-Options", "nosniff");
     reply.header("X-Frame-Options", "DENY");
     reply.header("Referrer-Policy", "no-referrer");
-    reply.header("Cache-Control", "no-store");
+    const isAsset = req.url.startsWith("/assets/");
+    if (!isAsset) reply.header("Cache-Control", "no-store"); // API data and HTML are never cached
+    if (!req.url.startsWith("/api/")) {
+      // The UI loads only its own scripts, styles, fonts and images.
+      reply.header(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+      );
+    }
     if (ctx.env.NODE_ENV === "production") {
       reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     }
@@ -60,6 +72,27 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await locationRoutes(app, ctx);
   await imageRoutes(app, ctx);
   await evidenceRoutes(app, ctx);
+  await reviewRoutes(app, ctx);
+
+  // Reviewer UI (single deployable): static assets + SPA fallback for client-side routes.
+  if (existsSync(path.join(ctx.env.WEB_DIST_DIR, "index.html"))) {
+    await app.register(fastifyStatic, {
+      root: ctx.env.WEB_DIST_DIR,
+      // Look files up per request, so a redeployed dist/ is served without a restart.
+      wildcard: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) res.header("Cache-Control", "public, max-age=31536000, immutable");
+      },
+    });
+    app.setNotFoundHandler((req, reply) => {
+      // Client-side routes get the app shell; missing API routes and asset files are real 404s
+      // (serving HTML for a missing script would make the browser reject it silently).
+      if (req.method === "GET" && !req.url.startsWith("/api/") && !req.url.startsWith("/assets/")) {
+        return reply.type("text/html").sendFile("index.html");
+      }
+      return reply.code(404).send({ error: "NOT_FOUND" });
+    });
+  }
 
   return app;
 }

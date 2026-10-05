@@ -25,7 +25,7 @@ See [IMPLEMENTATION_PLAN.md §2–3](../IMPLEMENTATION_PLAN.md) for the full rat
 
 ## Processes
 
-- **api** — `src/main.ts`: REST API (and the built web UI from Phase 9).
+- **api** — `src/main.ts`: REST API and the built reviewer UI (`apps/web/dist`).
 - **worker** — claims jobs from `verification_jobs` (`SKIP LOCKED`, leases, retries), runs `PROCESS_LOCATION`, polls the NetSuite queue every `NETSUITE_POLL_INTERVAL_SEC`. Runs embedded in the API (`WORKER_MODE=embedded`, required with PGlite) or as separate processes (`npm run worker -w @alvip/server`, Postgres only). Later phases add the NetSuite outbox drain.
 
 ## Location processing (Phase 2)

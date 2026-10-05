@@ -62,9 +62,20 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 - `GET /api/queue/summary` adds `awaitingReviewByRisk`.
 - `GET /api/locations/:id/evidence` adds `recommendation { value, explanation, lane }` and `risk { level, factors: [{ factor, detail }] }`.
 
+### Phase 9
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/review/next` | REVIEWER | `?lane=HUMAN_REVIEW\|FAST&after=<id>` → `{ locationId }` oldest awaiting (team leads also get ESCALATED) |
+| POST | `/api/locations/:id/review/open` | REVIEWER | audits REVIEW_OPENED → `{ openedAt }` |
+| POST | `/api/locations/:id/review` | REVIEWER | body `{ decision: APPROVE\|REJECT\|ESCALATE, serviceDecisions?, reasonCode?, reasonText?, evidenceViewed?, openedAt? }` → 201 `{ reviewId, status, isOverride, conflicts }`. 422 `REASON_REQUIRED` when going against the AI without a reason; 403 when a reviewer decides an escalated location; 409 when already decided |
+| GET | `/api/locations/:id/reviews` | REVIEWER | decision history with reviewer names |
+| POST | `/api/review/fast-lane/confirm` | REVIEWER | `{ locationIds[], openedAt? }`; automation level 3 only (409 otherwise); 422 `NOT_FAST_LANE` if any location is not a Fast Lane approve recommendation |
+
+Non-API GETs return the reviewer UI (`index.html`) when `WEB_DIST_DIR` exists.
+
 ## Planned (PRD §76)
 
 | Method | Path | Phase |
 |---|---|---|
-| POST | `/api/locations/:id/review` | 9 |
 | GET | `/api/dashboard`, `/api/analytics` | 12 |

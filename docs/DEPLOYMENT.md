@@ -4,6 +4,7 @@
 
 ## Shape
 
+- The reviewer UI is built with `npm run build:web` and served by the API (no separate web server).
 - One container image, two roles: `api` (`npm start -w @alvip/server`, with `WORKER_MODE=off` when separate workers run) and `worker` (`npm run worker -w @alvip/server`). Scale workers horizontally; they coordinate through Postgres row locks and leases.
 - PostgreSQL 16 (managed in production).
 - TLS terminated upstream; `COOKIE_SECURE=true` (enforced).

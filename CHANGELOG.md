@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.9.0] — Phase 9: Human review UI — 2026-10-05
+
+### Added
+- **Reviewer web app** (`apps/web`, React + Vite, served by the API in production):
+  - **Queue**: lanes (Needs review, Fast lane, Problems, Search all) with counts; filters (search, risk) and order (oldest, highest risk, newest); "Start reviewing" opens the oldest location.
+  - **Review workspace** (one location at a time, PRD §28): AI suggestion with "a suggestion only" note, named risk factors, each required service with verdict tag, plain explanation, reason phrases, component statuses and clickable evidence refs; tabs for strongest evidence (bundle), before/after and all photos (strongest first, with stage/duplicate/unusable markers).
+  - **Before/after wipe comparison**: drag (or ←/→) to reveal the after-photo over the before-photo, with the model's same-area note and per-service changes alongside.
+  - **Full-size viewer** with ←/→/Esc; full views are audited as evidence viewed.
+  - **Decision bar**: Approve / Reject / Escalate / Skip with keyboard shortcuts (A/R/E/N). Agreeing with the AI is one action; going against the evidence opens a structured reason picker (note required for "Other"). After a decision the next location opens automatically.
+  - **Fast lane** batch page (automation level 3): cards with service verdicts and strongest photos; approve selected.
+  - **Location detail**: AI assessment, decisions (with "against AI" marker and reasons), processing runs (model, prompt version), full history; team leads can reprocess (with reason) and send exceptions to manual review.
+  - Field-survey visual identity (spruce/sage/turf/ochre/brick/survey-blue, Bricolage Grotesque + IBM Plex, self-hosted fonts), light and dark mode, keyboard focus, reduced-motion respected.
+- **Review API**: `POST /api/locations/:id/review` (immutable `human_reviews` record with AI snapshot, conflicts, reason, evidence viewed — client-reported plus server-audited full views — and open time; transition + `HUMAN_DECISION` / `HUMAN_OVERRIDE` audit in one transaction), `POST /api/locations/:id/review/open`, `GET /api/locations/:id/reviews`, `GET /api/review/next` (oldest first, optional lane), `POST /api/review/fast-lane/confirm` (level 3 only; Fast Lane approve recommendations only; one review record per location).
+- **Override rules** (PRD §25, §29): a structured reason is required to approve while any service is not SUPPORTED, to reject a strongly supported service, or to go against an approve/reject recommendation. Escalated locations are decided by team leads only. Concurrent decisions → 409, never a double decision.
+- API serves the built UI (`WEB_DIST_DIR`): SPA fallback for client routes, real 404s for missing assets and API routes, immutable caching for fingerprinted assets, `no-store` for HTML/API, Content-Security-Policy for pages.
+
+### Fixed during the phase
+- Static serving with `wildcard: false` only knew assets present at startup; a rebuilt UI was answered with HTML and the browser rejected it. Now looked up per request, and missing assets return 404.
+- Keyboard shortcuts crashed when the key event target was not an element (found by a component test).
+- Dark mode: filled buttons used white text on light fills (low contrast) — now dark text.
+
+### Verified
+- 386 tests passing (incl. review API, Fast Lane batch, UI serving, and jsdom component tests for the decision bar and wipe slider).
+- Live, in a real browser (Playwright): login → queue → demo case 4 → open a photo → press A → reason picker → approve with reason → next location opens. Stored: override with reason and note, AI snapshot, evidence viewed, open time; audit trail REVIEW_OPENED → EVIDENCE_VIEWED → LOCATION_STATUS_CHANGED → HUMAN_DECISION → HUMAN_OVERRIDE. Screens checked in light and dark mode.
+
 ## [0.8.0] — Phase 8: Risk engine, recommendation and lanes — 2026-10-05
 
 ### Added

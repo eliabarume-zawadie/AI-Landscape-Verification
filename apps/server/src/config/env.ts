@@ -31,6 +31,8 @@ const envSchema = z.object({
   PGLITE_DATA_DIR: z.string().default(path.join(repoRoot, ".data", "pglite")),
 
   CONFIG_DIR: z.string().default(path.join(repoRoot, "config")),
+  /** Built reviewer UI (apps/web/dist). Served by the API when the directory exists. */
+  WEB_DIST_DIR: z.string().default(path.join(repoRoot, "apps", "web", "dist")),
   PROMPTS_DIR: z.string().default(path.join(repoRoot, "prompts")),
 
   SESSION_TTL_HOURS: z.coerce.number().positive().default(12),

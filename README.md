@@ -23,10 +23,13 @@ Phases 1–3 are complete: foundation (config, schema, auth/RBAC, audit, version
 npm install
 cp .env.example .env          # defaults: mocks on, automation level 1
 npm run db:seed               # migrate, load config/, create dev users (passwords printed once)
-npm run dev                   # API on http://127.0.0.1:3000
+npm run build:web             # build the reviewer UI once
+npm run dev                   # API + UI on http://127.0.0.1:3000 (worker runs inside; mock queue is pulled every minute)
 ```
 
-Check it's up: `curl http://127.0.0.1:3000/api/health`
+Open http://127.0.0.1:3000 and sign in with a dev user. For UI development with hot reload, run `npm run dev` and `npm run web` together and open http://127.0.0.1:5173 (it proxies `/api`).
+
+Check the API is up: `curl http://127.0.0.1:3000/api/health`
 
 To create a user later:
 
@@ -38,7 +41,9 @@ ALVIP_NEW_PASSWORD='at-least-12-chars' npm run user:create -- someone@example.co
 
 | Command | Purpose |
 |---|---|
-| `npm test` | All unit + integration tests (uses in-memory PGlite) |
+| `npm test` | All unit, integration and UI component tests (in-memory PGlite, jsdom) |
+| `npm run build:web` | Build the reviewer UI into `apps/web/dist` (served by the API) |
+| `npm run web` | UI dev server with hot reload (proxies `/api` to the API) |
 | `npm run typecheck` | TypeScript checks |
 | `npm run db:migrate` | Apply migrations |
 | `npm run db:seed` | Migrate + sync `config/` into versioned DB rows + dev users |
@@ -47,7 +52,8 @@ ALVIP_NEW_PASSWORD='at-least-12-chars' npm run user:create -- someone@example.co
 ## Repository layout
 
 ```text
-apps/server/     API + (later) workers — Fastify, Drizzle, Zod
+apps/server/     API + workers — Fastify, Drizzle, Zod
+apps/web/        Reviewer UI — React, Vite
 packages/shared/ enums and config schemas shared with the web app
 config/          versioned service rules, thresholds (provisional), client profiles
 prompts/         versioned AI prompt templates (Phase 4)
