@@ -40,10 +40,15 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 | GET | `/api/locations/:id/images` | REVIEWER | `?runId=` (default current run). Items with `contentAvailable`, `downloadError`, and `analysis {qualityScore, usable, issues, duplicateGroup, isDuplicateRepresentative, duplicateKind}`; `summary {total, usable, unusable, uniqueClusters, duplicates}` |
 | GET | `/api/locations/:id/images/:imageId/content` | REVIEWER | `?variant=full\|thumb`. Private, `no-store`. Full views are audited (`EVIDENCE_VIEWED`). 410 if purged, 422 if undecodable, 404 if the image belongs to another location |
 
+### Phase 5
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/locations/:id/evidence` | REVIEWER | `?runId=` (default current). Per service: `status`, `confidence`, `humanRequired`, `reasons`, `explanation`, `components`, `supporting`/`contradicting`/`context` items (`ref`, `evidenceType`, `strength` as HIGH/MEDIUM/LOW, `observation`), `contradictions` with image refs. Never returns raw scores |
+
 ## Planned (PRD §76)
 
 | Method | Path | Phase |
 |---|---|---|
-| GET | `/api/locations/:id/evidence` | 7 |
 | POST | `/api/locations/:id/review` | 9 |
 | GET | `/api/dashboard`, `/api/analytics` | 12 |

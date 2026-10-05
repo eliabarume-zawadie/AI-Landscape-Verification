@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { adminRoutes } from "../modules/admin/routes";
 import { authRoutes } from "../modules/auth/routes";
 import { configRoutes } from "../modules/config/routes";
+import { evidenceRoutes } from "../modules/evidence/routes";
 import { imageRoutes } from "../modules/images/routes";
 import { locationRoutes } from "../modules/locations/routes";
 import { registerAuth } from "./authPlugin";
@@ -58,6 +59,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await adminRoutes(app, ctx);
   await locationRoutes(app, ctx);
   await imageRoutes(app, ctx);
+  await evidenceRoutes(app, ctx);
 
   return app;
 }

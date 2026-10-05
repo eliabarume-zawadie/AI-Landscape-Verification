@@ -1,6 +1,6 @@
 # ALVIP — Implementation Plan
 
-**Status:** Phases 0–4 complete · Phase 5 next
+**Status:** Phases 0–5 complete · Phase 6 next
 **Source spec:** [PRD.md](PRD.md) v1.0
 **Last updated:** 2026-10-05
 
@@ -271,6 +271,7 @@ interface VisionProvider {
 | A15 | Crews likely submit iPhone **HEIC** photos (confirmed by business, 2026-10-05). Accepted formats: JPEG, PNG, WebP, HEIF (incl. AVIF and HEVC HEIC). sharp cannot decode HEVC HEIC (verified on a real file), so those are decoded with libheif (WebAssembly, `heic-decode`), max 2 concurrent decodes. Pending: test with real crew photos, and check HEVC patent/licensing position with legal (see SECURITY.md). |
 | A16 | Default vision provider is Anthropic (`claude-opus-5-5`, effort `high`, refusal fallback on) — set by the business 2026-10-05. OpenAI is switchable (`VISION_PROVIDER=openai` + explicit `VISION_MODEL`). The production model should still be confirmed by golden-dataset evaluation (Phase 13). Fallbacks can change the serving model, so the served model is recorded per image and evaluation must group by it. |
 | A17 | Images are sent one per request at ≤1568 px. Batching several images per request, or the Batch API (async, lower cost), are possible later optimisations once accuracy is measured. |
+| A18 | Evidence rules (provisional, documented in AI_PIPELINE.md): absence of evidence is never NOT_SUPPORTED; HIGH confidence needs ≥ 2 independent images; a requirement that has not been evaluated blocks SUPPORTED; a client's per-service confidence override can only tighten. |
 | A11 | A client profile can make a service's confidence threshold **stricter** but never looser than the service default. Any rule requiring human review (service default, client-wide, client per-service) wins. |
 
 ---
@@ -323,10 +324,10 @@ interface VisionProvider {
 | 2 | Postgres queue + workers, NetSuite mock ingest, location processor & state transitions | ✅ Done (CHANGELOG 0.2.0) |
 | 3 | Image acquisition, format validation, pixel quality, exact + near-duplicate detection, storage + retention | ✅ Done (CHANGELOG 0.3.0) |
 | 4 | Vision abstraction, prompt registry, schema validation, mock provider, caching, cost tracking | ✅ Done (CHANGELOG 0.4.0) |
-| 5 | Service evidence aggregation (5-state status) | ⏳ |
+| 5 | Service evidence aggregation (5-state status) | ✅ Done (CHANGELOG 0.5.0) — includes contradiction detection (needed for the CONTRADICTORY status) |
 | 6 | Before/after pairing + comparison | ⏳ |
 | 7 | Evidence ranking, diversity, bundling | ⏳ |
-| 8 | Contradiction detector, risk engine, recommendation, lanes | ⏳ |
+| 8 | Risk engine, location recommendation, lanes (contradiction detection delivered in Phase 5) | ⏳ |
 | 9 | Reviewer workspace, location detail, search | ⏳ |
 | 10 | Overrides, feedback, knowledge base | ⏳ |
 | 11 | NetSuite outbox sync (mock; production adapter when U1–U6 are resolved) | ⏳ |

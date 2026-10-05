@@ -383,6 +383,8 @@ export const serviceAssessments = pgTable(
     humanRequired: boolean("human_required").notNull(),
     reasons: jsonb("reasons").notNull().default([]),
     explanation: text("explanation").notNull(),
+    /** Decomposed services: status of each required component. */
+    components: jsonb("components"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("service_assessments_run_service_uq").on(t.runId, t.serviceCode)],

@@ -9,6 +9,7 @@ import { reachableErrorStatus, transitionLocation } from "../services/locationTr
 import type { JobContext, JobHandler } from "./jobHandler";
 import { JOB_TYPES, type ProcessLocationPayload } from "./jobTypes";
 import { runImageStage } from "./stages/imageStage";
+import { runEvidenceStage, servicesToObserve } from "./stages/evidenceStage";
 import { runVisionStage } from "./stages/visionStage";
 
 /**
@@ -102,17 +103,23 @@ export const processLocationHandler: JobHandler = {
     const services = (
       await db.select({ code: locationServices.serviceCode }).from(locationServices).where(eq(locationServices.locationId, loc.id))
     ).map((r) => r.code);
-    await runVisionStage(ctx, { locationId: loc.id, runId, services, config, actor });
+    const profile = config.clientProfiles.get(loc.clientCode)!.profile;
+    const observe = servicesToObserve(config.registry, profile, services);
+    await runVisionStage(ctx, { locationId: loc.id, runId, services: observe, config, actor });
     await transitionLocation(db, { locationId: loc.id, to: "EVIDENCE_BUILDING", actor, runId });
 
-    // ---- Stages 5–8 (evidence, pairing, bundling, risk) plug in here.
+    // ---- Stage: service evidence (Phase 5). Before/after and scene coverage are not
+    // evaluated until Phase 6, so rules that need them fail closed.
+    await runEvidenceStage(ctx, { locationId: loc.id, runId, services, config, profile, stage: {}, actor });
+
+    // ---- Stages 6–8 (pairing, bundling, risk) plug in here.
 
     await finishRun(ctx, {
       locationId: loc.id,
       runId,
       actor,
       aiAnalysisPerformed: true,
-      reason: "EVIDENCE_ENGINE_NOT_YET_AVAILABLE",
+      reason: "RISK_ENGINE_NOT_YET_AVAILABLE",
       via: ["AI_REVIEW_READY"],
     });
   },

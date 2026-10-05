@@ -1,7 +1,7 @@
 {
-  "version": "thresholds-v2",
+  "version": "thresholds-v3",
   "provisional": true,
-  "_note": "PROVISIONAL placeholders (IMPLEMENTATION_PLAN A7). Replace with values derived from golden-dataset evaluation before any rollout. v2 adds format/size limits and the pixel-similarity duplicate check.",
+  "_note": "PROVISIONAL placeholders (IMPLEMENTATION_PLAN A7). Replace with values derived from golden-dataset evaluation before any rollout. v3 adds evidence aggregation settings.",
   "confidence_bands": { "high": 0.85, "medium": 0.6 },
   "quality": {
     "min_usable_score": 0.5,
@@ -14,6 +14,7 @@
     "max_input_pixels": 50000000
   },
   "duplicates": { "near_duplicate_hamming_max": 10, "near_duplicate_mad_max": 6 },
+  "evidence": { "min_independent_images_for_high": 2, "counter_evidence_min_strength": 0.6 },
   "risk": { "medium_at": 0.3, "high_at": 0.6 },
   "metrics": { "min_sample_size": 30 }
 }

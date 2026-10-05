@@ -6,6 +6,8 @@ import { MockImageProvider } from "../integrations/images/mock/MockImageProvider
 import { MOCK_SCENARIOS, type MockScenario } from "../integrations/netsuite/mock/scenarios";
 import { requestReprocess } from "../services/locationActions";
 import { purgeExpiredImages } from "../services/retention";
+import { loadVerificationConfigFromDir } from "../config/verificationConfig";
+import { CONFIG_DIR } from "../test/helpers";
 import { createHarness, scenario, type Harness } from "../test/harness";
 
 let t: Harness;
@@ -119,7 +121,7 @@ describe("image stage across all mock scenarios", () => {
       .select({ data: auditEvents.data })
       .from(auditEvents)
       .where(and(eq(auditEvents.runId, l.currentRunId!), eq(auditEvents.eventType, "IMAGE_QUALITY_ASSESSED")));
-    expect(ev!.data).toMatchObject({ total: 6, usable: 1, readable: 5, thresholdsVersion: "thresholds-v2" });
+    expect(ev!.data).toMatchObject({ total: 6, usable: 1, readable: 5, thresholdsVersion: loadVerificationConfigFromDir(CONFIG_DIR).thresholds.version });
   });
 
   it("reuses stored bytes when reprocessing (only new images are fetched)", async () => {

@@ -159,6 +159,12 @@ export const thresholdsSchema = z
        */
       near_duplicate_mad_max: z.number().min(0).max(255),
     }),
+    evidence: z.object({
+      /** Independent (non-duplicate) images needed before confidence can be HIGH. */
+      min_independent_images_for_high: z.number().int().min(1),
+      /** Negative evidence at or above this strength contradicts positive evidence. */
+      counter_evidence_min_strength: unitInterval,
+    }),
     risk: z.object({ medium_at: unitInterval, high_at: unitInterval }),
     metrics: z.object({ min_sample_size: z.number().int().positive() }),
   })

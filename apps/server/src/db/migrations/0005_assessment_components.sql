@@ -1,0 +1,1 @@
+ALTER TABLE "service_assessments" ADD COLUMN "components" jsonb;

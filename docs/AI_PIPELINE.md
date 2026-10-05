@@ -53,6 +53,31 @@ Both real providers require `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true`. Switching
 
 Adding a provider means implementing `VisionProvider.analyzeImage` (return raw output, served model, usage, refusal). Validation, caching and recording are shared.
 
+## Evidence engine (implemented, Phase 5)
+
+Pure function `assessService(ctx, service)` in `domain/evidence.ts`. Per required service:
+
+1. **Eligible images**: analysis `ANALYZED`/`CACHED`, usable, representative of its duplicate cluster. One vote per cluster.
+2. **Classify observations** by the current rules' polarity. Positive types listed in `insufficient_alone` cannot support alone. (Phase 6) negative evidence in a *before* photo is baseline context; positive evidence in a before photo cannot support.
+3. **Status** (first match wins):
+
+| Condition | Status |
+|---|---|
+| No eligible image, and some analyses failed | `UNABLE_TO_DETERMINE` |
+| No eligible image | `INSUFFICIENT_EVIDENCE` (`NO_USABLE_ANALYSED_IMAGES`) |
+| Support ≥ medium band **and** counter-evidence ≥ `counter_evidence_min_strength` | `CONTRADICTORY` (pairs recorded) |
+| Counter-evidence only | `NOT_SUPPORTED` |
+| No qualifying positive evidence | `INSUFFICIENT_EVIDENCE` (`ONLY_CONTEXT_EVIDENCE` / `NO_RELEVANT_EVIDENCE`) |
+| Best support < service `minimum_confidence_for_assistance` | `INSUFFICIENT_EVIDENCE` (`BELOW_CONFIDENCE_THRESHOLD`) |
+| Any requirement unmet or not yet evaluated (before/after, min usable images, distinct scenes) | `INSUFFICIENT_EVIDENCE` (reason per requirement) |
+| Otherwise | `SUPPORTED` |
+
+4. **Confidence**: band of the deciding strength; capped at MEDIUM below `min_independent_images_for_high` independent images; LOW for contradictory/insufficient/unable.
+5. **Human required** unless `SUPPORTED` + `HIGH` + no rule requiring review + no weak counter-evidence + no failed analyses. (At automation levels ≤ 3 a human decides regardless; this flag drives lanes in Phase 8.)
+6. **Decomposed services** (landscape maintenance): most severe component status; own negative evidence can add a contradiction.
+
+Explanations are deterministic templates that cite image refs. No LLM writes them.
+
 ## Division of responsibility
 
 | Vision model (non-deterministic) | ALVIP code (deterministic, tested, versioned) |

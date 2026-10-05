@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.0] — Phase 5: Service evidence engine — 2026-10-05
+
+### Added
+- **Evidence engine** (`domain/evidence.ts`, pure and deterministic): one assessment per required service with status `SUPPORTED` / `NOT_SUPPORTED` / `INSUFFICIENT_EVIDENCE` / `CONTRADICTORY` / `UNABLE_TO_DETERMINE`, a confidence band, human-review flag, reason codes, a template explanation naming the images, and the supporting / contradicting / context evidence.
+  - Only analysed, usable, cluster-representative images count; each duplicate cluster counts once (25 copies = 1 image).
+  - Polarity is taken from the current service rules. Evidence types in `insufficient_alone` never support on their own (equipment, healthy grass, "weeds reduced", "dead grass observed").
+  - Strong support + strong counter-evidence → `CONTRADICTORY`, with the supporting/contradicting image pair recorded. Counter-evidence only → `NOT_SUPPORTED`. Absence of evidence → `INSUFFICIENT_EVIDENCE`, never `NOT_SUPPORTED`. AI failed on every usable image → `UNABLE_TO_DETERMINE`.
+  - `SUPPORTED` needs evidence at or above the service threshold **and** every requirement met: before/after (when required), client minimum usable images, client distinct-scene coverage. Requirements that later phases evaluate **fail closed** until then.
+  - Confidence: HIGH needs ≥ 2 independent images (configurable); weak counter-evidence, failed analyses, or rule-required review force human review.
+  - Landscape maintenance is assessed through the client's required components (worst status wins); its own plant-bed evidence can add a contradiction but never upgrade it.
+  - Hook for Phase 6: negative evidence in photos identified as *before* photos becomes baseline context instead of contradiction.
+- Evidence stage in `EVIDENCE_BUILDING`: persists `service_assessments` (with component statuses), `evidence`, `contradictions` per run; `EVIDENCE_GENERATED` audit event records which stage inputs were evaluated. The vision request now includes the components of decomposed services.
+- `GET /api/locations/:id/evidence[?runId=]`: per-service status, confidence, reasons, explanation, evidence (strength as HIGH/MEDIUM/LOW band only), contradictions with image refs. No internal scores.
+- Thresholds **v3** (provisional): `evidence.min_independent_images_for_high`, `evidence.counter_evidence_min_strength`.
+- Migration `0005`: `service_assessments.components`.
+
+### Known, by design until Phase 6
+- Before/after and scene coverage are not evaluated yet, so services that require them are `INSUFFICIENT_EVIDENCE` (reason `BEFORE_AFTER_NOT_YET_EVALUATED`), and before photos' negative evidence (e.g. tall grass) currently reads as a contradiction (demo cases 1, 4, 6 → `CONTRADICTORY`). Both err toward human review, never toward approval.
+
+### Verified
+- 273 tests passing, including 28 engine unit tests (one per rule: duplicates, context-only, fertilization, weeds, dead grass, contradiction, fail-closed requirements, decomposition, before-photo baseline, determinism) and pipeline/API integration tests.
+
 ## [0.4.1] — Switchable vision provider — 2026-10-05
 
 ### Changed
