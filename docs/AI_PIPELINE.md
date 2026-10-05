@@ -12,6 +12,19 @@ Image → Format validation → Pixel quality (blur, dark, bright, size) → Exa
 
 Every stage writes structured results keyed by `processing_run_id`.
 
+## Image stage (implemented, Phase 3)
+
+| Step | How | Output |
+|---|---|---|
+| Fetch | `ImageProvider`, `IMAGE_FETCH_CONCURRENCY` in parallel; stored bytes reused | private storage object, `images.sha256` |
+| Decode + measure | sharp, single decode, ≤512 px greyscale copy | format, oriented size, mean luminance, Laplacian variance, dark/bright fractions |
+| Quality | `domain/quality.ts` against active thresholds | score (ranking only), usable, issues |
+| Duplicates | `domain/dedup.ts`: SHA-256 exact; near = dHash Hamming ≤ `near_duplicate_hamming_max` **and** 32×32 MAD ≤ `near_duplicate_mad_max` | cluster, representative, kind |
+
+Why two duplicate signals: dHash alone captures structure, and before/after photos of the same scene share structure. Requiring near-identical pixels as well keeps before/after pairs apart. In mock calibration the before/after distance was 38 bits against a threshold of 10.
+
+Unusable images stay visible to reviewers but can never count as positive evidence. Duplicates are clustered for counting only; every image remains viewable.
+
 ## Division of responsibility
 
 | Vision model (non-deterministic) | ALVIP code (deterministic, tested, versioned) |
@@ -23,7 +36,7 @@ Every stage writes structured results keyed by `processing_run_id`.
 
 ## Service rules
 
-[`config/services.v1.json`](../config/services.v1.json) defines, for each service:
+[`config/services.json`](../config/services.json) defines, for each service:
 
 - `evidence_types` with polarity: `positive` (can support), `negative` (challenges, feeds contradiction detection), `context` (never support on its own).
 - `insufficient_alone`: evidence types that cannot support a service by themselves (e.g. `equipment_present`, `healthy_lawn_appearance`, `weeds_reduced`, `dead_brown_grass_observed`).

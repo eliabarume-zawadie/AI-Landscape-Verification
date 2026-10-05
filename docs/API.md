@@ -33,11 +33,17 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 | GET | `/api/queue/summary` | REVIEWER | counts by status, lane, job status; oldest unprocessed |
 | POST | `/api/admin/ingest` | TEAM_LEAD | pull the NetSuite queue now |
 
+### Phase 3
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/locations/:id/images` | REVIEWER | `?runId=` (default current run). Items with `contentAvailable`, `downloadError`, and `analysis {qualityScore, usable, issues, duplicateGroup, isDuplicateRepresentative, duplicateKind}`; `summary {total, usable, unusable, uniqueClusters, duplicates}` |
+| GET | `/api/locations/:id/images/:imageId/content` | REVIEWER | `?variant=full\|thumb`. Private, `no-store`. Full views are audited (`EVIDENCE_VIEWED`). 410 if purged, 422 if undecodable, 404 if the image belongs to another location |
+
 ## Planned (PRD §76)
 
 | Method | Path | Phase |
 |---|---|---|
-| GET | `/api/locations/:id/images` (authenticated image streaming) | 3 |
 | GET | `/api/locations/:id/evidence` | 7 |
 | POST | `/api/locations/:id/review` | 9 |
 | GET | `/api/dashboard`, `/api/analytics` | 12 |

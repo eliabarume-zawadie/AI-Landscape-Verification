@@ -144,9 +144,20 @@ export const thresholdsSchema = z
       dark_mean_luminance_max: z.number().min(0).max(255),
       bright_mean_luminance_min: z.number().min(0).max(255),
       min_dimension_px: z.number().int().positive(),
+      /** Decoded formats accepted as evidence (sharp format names). */
+      accepted_formats: z.array(z.string().min(1)).min(1),
+      max_image_bytes: z.number().int().positive(),
+      /** Decompression-bomb guard. */
+      max_input_pixels: z.number().int().positive(),
     }),
     duplicates: z.object({
+      /** Candidate filter: structural (dHash) distance, 0–64. */
       near_duplicate_hamming_max: z.number().int().min(0).max(64),
+      /**
+       * Confirmation: mean absolute pixel difference of 32×32 greyscale thumbnails (0–255).
+       * Both signals must agree, so before/after photos of the same scene are not merged.
+       */
+      near_duplicate_mad_max: z.number().min(0).max(255),
     }),
     risk: z.object({ medium_at: unitInterval, high_at: unitInterval }),
     metrics: z.object({ min_sample_size: z.number().int().positive() }),

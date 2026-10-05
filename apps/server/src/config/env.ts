@@ -48,7 +48,13 @@ const envSchema = z.object({
   /** How often to pull the NetSuite queue. 0 disables automatic polling. */
   NETSUITE_POLL_INTERVAL_SEC: z.coerce.number().int().min(0).default(60),
 
+  /** Private image storage root (local filesystem driver). */
+  STORAGE_DIR: z.string().default(path.join(repoRoot, ".data", "images")),
+  IMAGE_FETCH_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
+
   IMAGE_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+  /** How often the worker purges image bytes past retention. 0 disables. */
+  RETENTION_SWEEP_INTERVAL_SEC: z.coerce.number().int().min(0).default(3600),
   METRICS_TIMEZONE: z.string().default("America/New_York"),
 
   // NetSuite (PRD §37). Never commit real values.

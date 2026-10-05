@@ -66,7 +66,7 @@ export async function syncConfigToDb(
       if (existing) {
         throw new ConfigError(
           `Service rules version "${config.registry.version}" already exists with different content. ` +
-            `Bump the version in services.*.json instead of editing it in place.`,
+            `Bump the version in services.json instead of editing it in place.`,
         );
       }
       if (activeRules) {

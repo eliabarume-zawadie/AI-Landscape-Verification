@@ -23,8 +23,8 @@ export interface VerificationConfig {
   hashes: { services: string; thresholds: string; clientProfiles: Map<string, string> };
 }
 
-export const SERVICES_FILE = "services.v1.json";
-export const THRESHOLDS_FILE = "thresholds.v1.json";
+export const SERVICES_FILE = "services.json";
+export const THRESHOLDS_FILE = "thresholds.json";
 export const CLIENT_PROFILES_DIR = "client-profiles";
 
 /**

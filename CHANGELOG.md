@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.0] — Phase 3: Image ingestion, quality, deduplication — 2026-10-05
+
+### Added
+- **Image acquisition stage**: fetches every image through `ImageProvider` (concurrency-limited), stores bytes in private storage, and reuses stored bytes on retry or reprocess. A missing or forbidden image is recorded per image and is not fatal. A transient error retries the job, and bytes fetched so far are kept. A location with no readable image goes to `IMAGE_ERROR`.
+- **Pixel quality analysis** (PRD §14), decoded once per image with sharp: format, oriented dimensions, mean luminance, Laplacian-variance sharpness, dark/bright fractions. Issues: `MISSING`, `CORRUPT`, `UNSUPPORTED_FORMAT`, `TOO_LARGE`, `TOO_SMALL`, `BLURRY`, `TOO_DARK`, `OVEREXPOSED` (`OBSTRUCTED`/`IRRELEVANT` reserved for the vision stage). Any issue → unusable. There's a decompression-bomb guard.
+- **Duplicate clustering** (PRD §15): exact (SHA-256) plus near duplicates. A near duplicate needs **both** a structural match (64-bit dHash) **and** near-identical pixels (32×32 thumbnail mean absolute difference), so before/after photos of the same scene are never merged. The best usable image represents each cluster; nothing is hidden from reviewers.
+- Per-run `image_analysis` rows (quality score, usable, issues, metrics, duplicate group/kind); `processing_runs.unique_image_count`; `IMAGE_QUALITY_ASSESSED` audit event.
+- **Mock image provider** rendering deterministic synthetic scenes as real JPEGs (before = rough grass, after = mowing stripes; per-photo camera variation; real blur/dark/overexposed/tiny/truncated/TIFF/missing defects). Includes a calibration script, `apps/server/src/scripts/calibrateMockImages.ts`.
+- **Private storage**: `LocalStorageProvider` (atomic writes, path-traversal-safe keys) and `MemoryStorageProvider` for tests.
+- **Retention** (PRD §51): worker sweep deletes image bytes older than `IMAGE_RETENTION_DAYS`, only for `COMPLETED`/`SYNCED_TO_NETSUITE` locations. Hashes, metadata and analysis are kept, and an `IMAGES_PURGED` audit event is written.
+- API: `GET /api/locations/:id/images` (per-run quality + duplicate analysis, summary), `GET /api/locations/:id/images/:imageId/content?variant=full|thumb` (authenticated, `no-store`; non-browser formats transcoded; full views audited as `EVIDENCE_VIEWED`; 410 once purged; 422 if undecodable).
+- Thresholds **v2** (provisional): accepted formats, max bytes, max pixels, pixel-similarity duplicate check. Config files renamed to `config/services.json` / `config/thresholds.json` (version lives inside the file).
+- Migration `0003`: `images.fingerprint`, `images.content_type`, `image_analysis.duplicate_kind`, new audit event types.
+
+### Fixed
+- sharp's `greyscale()` keeps 3 channels, so sharpness, dHash and fingerprints were being computed on interleaved RGB. All three now use a true single-channel image, with assertions. Found by a new unit test before release.
+- `mapLimit` no longer leaves in-flight work running after the first failure.
+
+### Verified
+- 178 tests passing.
+- Calibration: every injected defect is detected and clean images pass. Demo case 6 collapses 25 near-identical photos into 1 cluster (before photo kept separate at dHash distance 38 vs threshold 10). The 170-image location yields 169 unique clusters. Across all scenarios no cluster mixes before/after or different scenes (tested invariant).
+- Live run (API + embedded worker): 249 images fetched, analysed and stored. Queue cleared (13 human review, 3 exceptions). Image served with session, 401 without.
+
 ## [0.2.0] — Phase 2: Queue & location processing — 2026-10-05
 
 ### Added

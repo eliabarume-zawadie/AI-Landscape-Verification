@@ -44,7 +44,7 @@ A reprocess creates a new `processing_runs` row (`run_number` + 1). All per-run 
 
 ## Retention
 
-`images.purged_at` records when image bytes were deleted from storage under `IMAGE_RETENTION_DAYS`. Metadata, hashes, and analysis are kept. The retention job ships in Phase 3.
+`images.purged_at` records when image bytes were deleted from storage under `IMAGE_RETENTION_DAYS` (worker sweep every `RETENTION_SWEEP_INTERVAL_SEC`, finished locations only). Metadata, hashes, and analysis are kept.
 
 ## Backup / recovery
 

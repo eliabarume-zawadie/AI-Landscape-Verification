@@ -10,7 +10,7 @@ AI organises evidence and flags risk; **humans make every final decision** in th
 
 ## Status
 
-Phases 1–2 are complete: foundation (config, schema, auth/RBAC, audit, versioned rules) and queue processing (Postgres job queue, mock NetSuite ingest, location processor, reprocessing, Exception Lane). AI analysis, the review UI, and NetSuite sync come in later phases. See the phase table in the implementation plan.
+Phases 1–3 are complete: foundation (config, schema, auth/RBAC, audit, versioned rules), queue processing (Postgres job queue, mock NetSuite ingest, location processor, reprocessing, Exception Lane), and image ingestion (private storage, pixel quality checks, exact/near-duplicate clustering, retention). AI analysis, the review UI, and NetSuite sync come in later phases. See the phase table in the implementation plan.
 
 ## Requirements
 
@@ -56,8 +56,8 @@ docs/            architecture, API, database, security, deployment…
 
 ## Configuration you should know about
 
-- **Service rules** — `config/services.v1.json`. Edit → bump `version` → `npm run db:seed`. Old versions are kept.
-- **Thresholds** — `config/thresholds.v1.json`. All values are **provisional** until set from evaluation data.
+- **Service rules** — `config/services.json`. Edit → bump `version` → `npm run db:seed`. Old versions are kept.
+- **Thresholds** — `config/thresholds.json`. All values are **provisional** until set from evaluation data.
 - **Client profiles** — `config/client-profiles/*.json`. Current files are demo data only.
 - **Automation level** — `AUTOMATION_LEVEL` 0–3. Levels 4–5 are refused at startup.
 

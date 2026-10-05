@@ -237,8 +237,11 @@ export const images = pgTable(
     ordinal: integer("ordinal"),
     capturedAt: ts("captured_at"),
     sha256: text("sha256"),
-    /** 64-bit perceptual hash as 16 hex chars. */
+    /** 64-bit perceptual hash (dHash) as 16 hex chars. */
     perceptualHash: text("perceptual_hash"),
+    /** 32×32 greyscale thumbnail, base64 — confirms near-duplicates (see domain/dedup.ts). */
+    fingerprint: text("fingerprint"),
+    contentType: text("content_type"),
     format: text("format"),
     width: integer("width"),
     height: integer("height"),
@@ -307,6 +310,7 @@ export const imageAnalysis = pgTable(
     /** Images in the same group are (near-)duplicates; the representative carries the evidence. */
     duplicateGroup: text("duplicate_group"),
     isDuplicateRepresentative: boolean("is_duplicate_representative"),
+    duplicateKind: text("duplicate_kind"), // EXACT | NEAR | null
     relevant: boolean("relevant"),
     /** Validated vision observations (schema in AI_PIPELINE.md). */
     observations: jsonb("observations"),

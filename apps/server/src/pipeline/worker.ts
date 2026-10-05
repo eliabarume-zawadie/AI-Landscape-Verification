@@ -17,7 +17,13 @@ export interface WorkerDeps {
   log: Logger;
   workerId?: string;
   /** Periodic tasks run by the worker loop, e.g. polling the NetSuite queue. */
-  periodic?: { name: string; intervalMs: number; run: () => Promise<unknown> }[];
+  periodic?: PeriodicTask[];
+}
+
+export interface PeriodicTask {
+  name: string;
+  intervalMs: number;
+  run: () => Promise<unknown>;
 }
 
 /**

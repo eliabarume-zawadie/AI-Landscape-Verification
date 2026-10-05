@@ -1,8 +1,10 @@
 import type { Env } from "../config/env";
 import type { DbHandle } from "../db/client";
+import { MockImageProvider } from "../integrations/images/mock/MockImageProvider";
 import { MockNetSuiteAdapter } from "../integrations/netsuite/mock/MockNetSuiteAdapter";
 import { MOCK_SCENARIOS, type MockScenario } from "../integrations/netsuite/mock/scenarios";
 import { PgQueue } from "../integrations/queue/PgQueue";
+import { MemoryStorageProvider } from "../integrations/storage/LocalStorageProvider";
 import type { Logger } from "../pipeline/jobHandler";
 import type { Worker } from "../pipeline/worker";
 import { createWorker, type Runtime } from "../runtime";
@@ -15,6 +17,7 @@ export interface Harness {
   h: DbHandle;
   env: Env;
   netsuite: MockNetSuiteAdapter;
+  storage: MemoryStorageProvider;
   queue: PgQueue;
   runtime: Runtime;
   worker: Worker;
@@ -27,15 +30,18 @@ export async function createHarness(
   opts: { scenarios?: MockScenario[]; env?: Record<string, string> } = {},
 ): Promise<Harness> {
   const h = await createTestDb();
-  const env = testEnv({ NETSUITE_POLL_INTERVAL_SEC: "0", ...opts.env });
+  const env = testEnv({ NETSUITE_POLL_INTERVAL_SEC: "0", RETENTION_SWEEP_INTERVAL_SEC: "0", ...opts.env });
   const netsuite = new MockNetSuiteAdapter(opts.scenarios ?? MOCK_SCENARIOS);
   const queue = new PgQueue(h.db, { baseMs: 0, capMs: 0 }, () => 0);
-  const runtime: Runtime = { queue, integrations: { netsuite } };
+  const images = new MockImageProvider(opts.scenarios ?? MOCK_SCENARIOS);
+  const storage = new MemoryStorageProvider();
+  const runtime: Runtime = { queue, integrations: { netsuite, images, storage } };
   const worker = createWorker(env, h.db, runtime, silentLog, { pollNetSuite: false });
   return {
     h,
     env,
     netsuite,
+    storage,
     queue,
     runtime,
     worker,

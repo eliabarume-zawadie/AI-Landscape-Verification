@@ -1,6 +1,6 @@
 import { and, count, eq, max, sql } from "drizzle-orm";
 import { recordAudit, type Actor } from "../audit/audit";
-import { loadActiveConfig } from "../config/configStore";
+import { loadActiveConfig, type ActiveConfig } from "../config/configStore";
 import { clients, images, locations, processingRuns } from "../db/schema";
 import { IN_PROGRESS_STATUSES } from "../domain/locationState";
 import type { Db } from "../db/client";
@@ -8,13 +8,14 @@ import { WorkItemError } from "../services/errors";
 import { reachableErrorStatus, transitionLocation } from "../services/locationTransitions";
 import type { JobContext, JobHandler } from "./jobHandler";
 import { JOB_TYPES, type ProcessLocationPayload } from "./jobTypes";
+import { runImageStage } from "./stages/imageStage";
 
 /**
  * PROCESS_LOCATION: one processing run for one location (PRD §12, §40).
  *
- * Phase 2 scope: crash recovery, versioned run creation, image reference acquisition,
- * then routing to human review. AI stages (quality, dedup, vision, evidence, risk) are
- * added in Phases 3–8 between acquisition and routing. Until then no AI analysis is
+ * Stages so far: crash recovery, versioned run creation, image reference acquisition,
+ * image bytes + format/quality + duplicate clustering (Phase 3), then routing to human
+ * review. AI stages (vision, pairing, evidence, risk) are added in Phases 4–8. Until then no AI analysis is
  * claimed: the run records `aiAnalysisPerformed: false` and the location goes to
  * HUMAN_REVIEW with recommendation NEEDS_HUMAN_REVIEW.
  */
@@ -41,7 +42,8 @@ export const processLocationHandler: JobHandler = {
       return;
     }
 
-    const runId = await startRun(ctx, loc, payload, actor);
+    const config = await loadActiveConfig(db);
+    const runId = await startRun(ctx, config, loc, payload, actor);
 
     // ---- Stage: acquire image references
     const refs = await ctx.integrations.netsuite.getImages(loc.externalId);
@@ -67,16 +69,27 @@ export const processLocationHandler: JobHandler = {
       .from(images)
       .where(eq(images.locationId, loc.id));
     await db.update(processingRuns).set({ imageCount: total }).where(eq(processingRuns.id, runId));
+    await ctx.heartbeat();
+
+    // ---- Stage: fetch bytes, format/quality, duplicates (Phase 3)
+    const imageSummary = await runImageStage(ctx, { locationId: loc.id, runId, thresholds: config.thresholds, actor });
     await recordAudit(db, {
       eventType: "IMAGES_DOWNLOADED",
       actor,
       locationId: loc.id,
       runId,
-      data: { listed: refs.length, newImages: inserted.length, totalImages: total, bytesFetched: false },
+      data: {
+        listed: refs.length,
+        newImages: inserted.length,
+        totalImages: total,
+        fetched: imageSummary.fetched,
+        reusedFromStorage: imageSummary.reused,
+        missing: imageSummary.missing,
+      },
     });
     await ctx.heartbeat();
 
-    // ---- Stages 3–8 (quality, dedup, vision, pairing, evidence, risk) plug in here.
+    // ---- Stages 4–8 (vision, pairing, evidence, risk) plug in here.
 
     // ---- Route to human review. No AI decision is made in this phase.
     const reason = ctx.env.AUTOMATION_LEVEL === 0 ? "AUTOMATION_LEVEL_0_MANUAL" : "AI_STAGES_NOT_YET_AVAILABLE";
@@ -160,8 +173,13 @@ async function loadLocation(db: Db, locationId: string): Promise<LoadedLocation>
 }
 
 /** Create the versioned processing run (PRD §40, §42) and move QUEUED → DOWNLOADING. */
-async function startRun(ctx: JobContext, loc: LoadedLocation, payload: ProcessLocationPayload, actor: Actor): Promise<string> {
-  const config = await loadActiveConfig(ctx.db);
+async function startRun(
+  ctx: JobContext,
+  config: ActiveConfig,
+  loc: LoadedLocation,
+  payload: ProcessLocationPayload,
+  actor: Actor,
+): Promise<string> {
   const profile = config.clientProfiles.get(loc.clientCode);
   if (!profile) {
     throw new WorkItemError(`No active client profile for ${loc.clientCode}`, "CONFIGURATION", "INTEGRATION_ERROR");
