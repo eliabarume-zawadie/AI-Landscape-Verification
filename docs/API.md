@@ -20,16 +20,24 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 | GET | `/api/admin/users` | ADMIN | list users |
 | POST | `/api/admin/users` | ADMIN | body `{email, displayName, role, password(≥12)}` → 201; 409 `EMAIL_EXISTS` |
 
+### Phase 2
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/locations` | REVIEWER | filters `status, lane, client, service, q, runId, receivedFrom, receivedTo`; `sort=oldest\|newest` (default oldest); `limit ≤200, offset` |
+| GET | `/api/locations/:id` | REVIEWER | location, services, image metadata (no locators), runs (newest first), audit trail, open errors |
+| POST | `/api/locations/:id/reprocess` | TEAM_LEAD | body `{reason: NEW_IMAGES\|IMPROVED_MODEL\|CONFIG_CHANGE\|REVIEWER_DISPUTE\|TECHNICAL_ERROR, note?}` → 202 `{jobId}`; 409 `INVALID_STATE` if not reprocessable |
+| POST | `/api/locations/:id/manual-review` | TEAM_LEAD | Exception Lane (`IMAGE_ERROR`/`AI_ERROR`/`INTEGRATION_ERROR`) → `HUMAN_REVIEW` |
+| POST | `/api/jobs/location/:id` | TEAM_LEAD | queue a `NEW` location → 202 `{jobId}`; 409 otherwise |
+| GET | `/api/jobs/:id` | TEAM_LEAD | job status, attempts, last error |
+| GET | `/api/queue/summary` | REVIEWER | counts by status, lane, job status; oldest unprocessed |
+| POST | `/api/admin/ingest` | TEAM_LEAD | pull the NetSuite queue now |
+
 ## Planned (PRD §76)
 
 | Method | Path | Phase |
 |---|---|---|
-| POST | `/api/jobs/location/:id` | 2 |
-| GET | `/api/jobs/:id` | 2 |
-| GET | `/api/locations` (search/filter: id, client, service, status, date, result, processing ID) | 2 / 9 |
-| GET | `/api/locations/:id` | 2 |
-| GET | `/api/locations/:id/images` | 3 |
+| GET | `/api/locations/:id/images` (authenticated image streaming) | 3 |
 | GET | `/api/locations/:id/evidence` | 7 |
 | POST | `/api/locations/:id/review` | 9 |
-| POST | `/api/locations/:id/reprocess` | 2 |
 | GET | `/api/dashboard`, `/api/analytics` | 12 |

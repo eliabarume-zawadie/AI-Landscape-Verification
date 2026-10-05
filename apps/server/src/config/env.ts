@@ -37,6 +37,17 @@ const envSchema = z.object({
   /** PRD §89: AI runs but its output is hidden from reviewers and recorded separately. */
   SHADOW_MODE: bool(false),
 
+  /**
+   * "embedded" runs the worker inside the API process (required with PGlite, which is
+   * single-process). "off" for API-only instances when standalone workers run against Postgres.
+   */
+  WORKER_MODE: z.enum(["embedded", "off"]).default("embedded"),
+  WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(4),
+  WORKER_POLL_INTERVAL_MS: z.coerce.number().int().min(50).default(1000),
+  JOB_LEASE_SEC: z.coerce.number().int().min(10).default(300),
+  /** How often to pull the NetSuite queue. 0 disables automatic polling. */
+  NETSUITE_POLL_INTERVAL_SEC: z.coerce.number().int().min(0).default(60),
+
   IMAGE_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   METRICS_TIMEZONE: z.string().default("America/New_York"),
 

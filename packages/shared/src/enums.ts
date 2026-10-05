@@ -122,3 +122,13 @@ export const AUDIT_EVENT_TYPES = [
   "ERROR",
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
+
+/** PRD §43 reprocessing reasons. */
+export const REPROCESS_REASONS = [
+  "NEW_IMAGES",
+  "IMPROVED_MODEL",
+  "CONFIG_CHANGE",
+  "REVIEWER_DISPUTE",
+  "TECHNICAL_ERROR",
+] as const;
+export type ReprocessReason = (typeof REPROCESS_REASONS)[number];

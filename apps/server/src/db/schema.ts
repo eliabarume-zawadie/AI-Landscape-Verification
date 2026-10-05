@@ -231,6 +231,8 @@ export const images = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     locationId: uuid("location_id").notNull().references(() => locations.id),
     externalRef: text("external_ref").notNull(),
+    /** Opaque locator handed to the ImageProvider (from the source system). */
+    locator: text("locator").notNull(),
     filename: text("filename"),
     ordinal: integer("ordinal"),
     capturedAt: ts("captured_at"),

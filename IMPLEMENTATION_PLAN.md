@@ -1,6 +1,6 @@
 # ALVIP — Implementation Plan
 
-**Status:** Phase 0 complete · Phase 1 complete · Phase 2 next
+**Status:** Phases 0–2 complete · Phase 3 next
 **Source spec:** [PRD.md](PRD.md) v1.0
 **Last updated:** 2026-10-05
 
@@ -265,6 +265,8 @@ interface VisionProvider {
 | A8 | Fertilization defaults to human review for every client (PRD §61). |
 | A9 | Default queue ordering = oldest `received_at` first. |
 | A10 | Timezone for "today" metrics is configurable (default `America/New_York`, provisional). |
+| A12 | A NetSuite work item with an unknown client, unknown service code, or no services is never partially verified: it goes to the Exception Lane. |
+| A13 | Reviewers can see all locations until reviewer assignment is defined (PRD §52 "view assigned locations"; assignment model unknown). |
 | A11 | A client profile can make a service's confidence threshold **stricter** but never looser than the service default. Any rule requiring human review (service default, client-wide, client per-service) wins. |
 
 ---
@@ -314,7 +316,7 @@ interface VisionProvider {
 |---|---|---|
 | 0 | Repository & environment inspection, this plan | ✅ Done |
 | 1 | Architecture scaffold, config (env, mock flags, automation guard), versioned service registry + client profiles + thresholds, full DB schema + migrations, auth + RBAC, append-only audit, adapter interfaces, location state machine, docs skeleton | ✅ Done (see CHANGELOG 0.1.0) |
-| 2 | Postgres queue + workers, NetSuite mock ingest, location processor & state transitions | ⏳ |
+| 2 | Postgres queue + workers, NetSuite mock ingest, location processor & state transitions | ✅ Done (CHANGELOG 0.2.0) |
 | 3 | Image acquisition, format validation, pixel quality, exact + near-duplicate detection, storage + retention | ⏳ |
 | 4 | Vision abstraction, prompt registry, schema validation, mock provider, caching, cost tracking | ⏳ |
 | 5 | Service evidence aggregation (5-state status) | ⏳ |

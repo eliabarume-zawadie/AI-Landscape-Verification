@@ -1,6 +1,6 @@
 # NetSuite Integration
 
-**Status:** interface defined (Phase 1). Mock adapter in Phase 2. The production adapter is **blocked on the information below**. No NetSuite record types, field IDs, or endpoints have been assumed.
+**Status:** interface defined (Phase 1). Mock adapter implemented (Phase 2, `integrations/netsuite/mock/`). The production adapter is **blocked on the information below**. No NetSuite record types, field IDs, or endpoints have been assumed.
 
 ## Interface
 

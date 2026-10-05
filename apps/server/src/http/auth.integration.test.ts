@@ -5,6 +5,7 @@ import type { DbHandle } from "../db/client";
 import { auditEvents } from "../db/schema";
 import { createUser, LoginThrottle } from "../services/auth";
 import { createTestDb, testEnv } from "../test/helpers";
+import { createRuntime } from "../runtime";
 import { buildApp } from "./app";
 import { SESSION_COOKIE } from "./authPlugin";
 
@@ -14,7 +15,8 @@ const PASSWORD = "a-long-test-password";
 
 beforeAll(async () => {
   h = await createTestDb();
-  app = await buildApp({ env: testEnv(), db: h.db, loginThrottle: new LoginThrottle(3, 60_000) });
+  const env = testEnv();
+  app = await buildApp({ env, db: h.db, loginThrottle: new LoginThrottle(3, 60_000), ...createRuntime(env, h.db) });
   for (const [email, role] of [
     ["admin@test.local", "ADMIN"],
     ["lead@test.local", "TEAM_LEAD"],

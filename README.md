@@ -10,7 +10,7 @@ AI organises evidence and flags risk; **humans make every final decision** in th
 
 ## Status
 
-Phase 1 (foundation) is complete: configuration, database schema, authentication/RBAC, audit log, versioned service rules and client profiles, adapter interfaces. The processing pipeline, review UI and NetSuite sync come in later phases. See the phase table in the implementation plan.
+Phases 1–2 are complete: foundation (config, schema, auth/RBAC, audit, versioned rules) and queue processing (Postgres job queue, mock NetSuite ingest, location processor, reprocessing, Exception Lane). AI analysis, the review UI, and NetSuite sync come in later phases. See the phase table in the implementation plan.
 
 ## Requirements
 

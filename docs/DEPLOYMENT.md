@@ -4,7 +4,7 @@
 
 ## Shape
 
-- One container image, two roles: `api` (`npm start`) and `worker` (from Phase 2).
+- One container image, two roles: `api` (`npm start -w @alvip/server`, with `WORKER_MODE=off` when separate workers run) and `worker` (`npm run worker -w @alvip/server`). Scale workers horizontally; they coordinate through Postgres row locks and leases.
 - PostgreSQL 16 (managed in production).
 - TLS terminated upstream; `COOKIE_SECURE=true` (enforced).
 - Migrations run on API start; for multi-instance deploys run `npm run db:migrate` as a release step.

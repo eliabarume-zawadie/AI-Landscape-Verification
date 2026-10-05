@@ -26,7 +26,22 @@ See [IMPLEMENTATION_PLAN.md §2–3](../IMPLEMENTATION_PLAN.md) for the full rat
 ## Processes
 
 - **api** — `src/main.ts`: REST API (and the built web UI from Phase 9).
-- **worker** — Phase 2: claims jobs from `verification_jobs`, runs the pipeline, drains the NetSuite outbox.
+- **worker** — claims jobs from `verification_jobs` (`SKIP LOCKED`, leases, retries), runs `PROCESS_LOCATION`, polls the NetSuite queue every `NETSUITE_POLL_INTERVAL_SEC`. Runs embedded in the API (`WORKER_MODE=embedded`, required with PGlite) or as separate processes (`npm run worker -w @alvip/server`, Postgres only). Later phases add the NetSuite outbox drain.
+
+## Location processing (Phase 2)
+
+```text
+ingest (poll or POST /api/admin/ingest)
+  NEW -> QUEUED + job          (unknown client/service, no services -> INTEGRATION_ERROR)
+job PROCESS_LOCATION
+  [in-progress? -> fail stale run, -> QUEUED]   crash recovery
+  create processing_run (versions recorded) -> DOWNLOADING
+  list image refs (0 -> IMAGE_ERROR)
+  [Phases 3-8 insert: quality -> dedup -> vision -> pairing -> evidence -> risk]
+  -> HUMAN_REVIEW (recommendation NEEDS_HUMAN_REVIEW; aiAnalysisPerformed=false until Phase 4)
+failure: retryable -> run FAILED, location -> QUEUED, job backs off
+         final     -> run FAILED, location -> IMAGE_ERROR / AI_ERROR / INTEGRATION_ERROR (Exception Lane)
+```
 
 ## Data flow (target)
 

@@ -15,6 +15,13 @@
       "when": 1791187821615,
       "tag": "0001_append_only_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791190121863,
+      "tag": "0002_image_locator",
+      "breakpoints": true
     }
   ]
 }
