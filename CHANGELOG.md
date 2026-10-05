@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.1] — Fix: server would not start on an older local database — 2026-10-05
+
+### Fixed
+- `npm run dev` crashed at startup (browser: `ERR_CONNECTION_REFUSED`) when the local database had last been seeded by an earlier version: the stored thresholds (v1) lacked settings added in v2–v6. Development now loads the current `config/` files into the database on startup (idempotent; changes become new, audited versions). Production does not auto-apply config; it now stops with a one-line instruction to run `npm run db:seed` instead of a validation dump.
+- Config sync re-activates an existing version with identical content (e.g. after a rollback) instead of refusing it.
+- Startup failures print one clear sentence for common causes (invalid/outdated config, port in use, locked local database) and the address once running.
+
+### Verified
+- Reproduced on a copy of the affected local database: crash before, starts and serves the UI after. 387 tests passing (new regression test for outdated stored config).
+
 ## [0.9.0] — Phase 9: Human review UI — 2026-10-05
 
 ### Added

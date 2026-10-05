@@ -125,3 +125,27 @@ describe("constraints", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("outdated stored configuration", () => {
+  it("fails with a clear instruction instead of a raw validation error", async () => {
+    const fresh = await createTestDb();
+    try {
+      const [active] = await fresh.db.select().from(thresholdVersions).where(eq(thresholdVersions.isActive, true));
+      await fresh.db.update(thresholdVersions).set({ isActive: false }).where(eq(thresholdVersions.id, active!.id));
+      // Simulates a database last seeded by an older version of the app.
+      await fresh.db.insert(thresholdVersions).values({
+        version: "thresholds-v1-legacy",
+        thresholds: { version: "thresholds-v1-legacy", provisional: true, confidence_bands: { high: 0.85, medium: 0.6 } },
+        contentHash: "legacy",
+        provisional: true,
+        isActive: true,
+      });
+      await expect(loadActiveConfig(fresh.db)).rejects.toThrow(/outdated.*npm run db:seed/);
+      // Re-syncing the current files repairs it.
+      await syncConfigToDb(fresh.db, loadVerificationConfigFromDir(CONFIG_DIR), SYSTEM_ACTOR);
+      await expect(loadActiveConfig(fresh.db)).resolves.toBeDefined();
+    } finally {
+      await fresh.close();
+    }
+  });
+});

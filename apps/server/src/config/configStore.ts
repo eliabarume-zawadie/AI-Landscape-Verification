@@ -60,10 +60,10 @@ export async function syncConfigToDb(
       .where(eq(serviceRuleVersions.isActive, true));
     if (activeRules?.contentHash !== config.hashes.services) {
       const [existing] = await tx
-        .select({ id: serviceRuleVersions.id })
+        .select({ id: serviceRuleVersions.id, contentHash: serviceRuleVersions.contentHash })
         .from(serviceRuleVersions)
         .where(eq(serviceRuleVersions.version, config.registry.version));
-      if (existing) {
+      if (existing && existing.contentHash !== config.hashes.services) {
         throw new ConfigError(
           `Service rules version "${config.registry.version}" already exists with different content. ` +
             `Bump the version in services.json instead of editing it in place.`,
@@ -72,6 +72,20 @@ export async function syncConfigToDb(
       if (activeRules) {
         await tx.update(serviceRuleVersions).set({ isActive: false }).where(eq(serviceRuleVersions.id, activeRules.id));
       }
+      if (existing) {
+        // Same version and content already stored (e.g. after a rollback): re-activate it.
+        await tx.update(serviceRuleVersions).set({ isActive: true }).where(eq(serviceRuleVersions.id, existing.id));
+        await recordAudit(tx, {
+          eventType: "CONFIG_CHANGED",
+          actor,
+          entityType: "service_rule_versions",
+          entityId: existing.id,
+          data: { version: config.registry.version, previous: activeRules?.version ?? null, reactivated: true },
+        });
+        summary.serviceRules = "created";
+      }
+    }
+    if (activeRules?.contentHash !== config.hashes.services && summary.serviceRules !== "created") {
       const [row] = await tx
         .insert(serviceRuleVersions)
         .values({
@@ -99,10 +113,10 @@ export async function syncConfigToDb(
       .where(eq(thresholdVersions.isActive, true));
     if (activeThresholds?.contentHash !== config.hashes.thresholds) {
       const [existing] = await tx
-        .select({ id: thresholdVersions.id })
+        .select({ id: thresholdVersions.id, contentHash: thresholdVersions.contentHash })
         .from(thresholdVersions)
         .where(eq(thresholdVersions.version, config.thresholds.version));
-      if (existing) {
+      if (existing && existing.contentHash !== config.hashes.thresholds) {
         throw new ConfigError(
           `Thresholds version "${config.thresholds.version}" already exists with different content. Bump the version.`,
         );
@@ -110,6 +124,20 @@ export async function syncConfigToDb(
       if (activeThresholds) {
         await tx.update(thresholdVersions).set({ isActive: false }).where(eq(thresholdVersions.id, activeThresholds.id));
       }
+      if (existing) {
+        // Same version and content already stored (e.g. after a rollback): re-activate it.
+        await tx.update(thresholdVersions).set({ isActive: true }).where(eq(thresholdVersions.id, existing.id));
+        await recordAudit(tx, {
+          eventType: "CONFIG_CHANGED",
+          actor,
+          entityType: "threshold_versions",
+          entityId: existing.id,
+          data: { version: config.thresholds.version, previous: activeThresholds?.version ?? null, reactivated: true },
+        });
+        summary.thresholds = "created";
+      }
+    }
+    if (activeThresholds?.contentHash !== config.hashes.thresholds && summary.thresholds !== "created") {
       const [row] = await tx
         .insert(thresholdVersions)
         .values({
@@ -191,8 +219,17 @@ export async function loadActiveConfig(db: Db): Promise<ActiveConfig> {
   if (!rules || !thr) {
     throw new ConfigError("No active service rules / thresholds in database. Run `npm run db:seed`.");
   }
-  const registry = new ServiceRegistry(serviceRuleSetSchema.parse(rules.rules));
-  const thresholds = thresholdsSchema.parse(thr.thresholds);
+  const parsedRules = serviceRuleSetSchema.safeParse(rules.rules);
+  const parsedThresholds = thresholdsSchema.safeParse(thr.thresholds);
+  if (!parsedRules.success || !parsedThresholds.success) {
+    const which = !parsedRules.success ? `service rules "${rules.version}"` : `thresholds "${thr.version}"`;
+    throw new ConfigError(
+      `The active ${which} stored in the database are outdated for this version of the application. ` +
+        "Run `npm run db:seed` to load the current config/ files as new versions.",
+    );
+  }
+  const registry = new ServiceRegistry(parsedRules.data);
+  const thresholds = parsedThresholds.data;
 
   const rows = await db
     .select({

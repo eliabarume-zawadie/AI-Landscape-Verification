@@ -25,6 +25,8 @@
 | Services stuck at `BEFORE_AFTER_NOT_ESTABLISHED` | Photos have no before/after filename words and no usable capture times (stage UNKNOWN), or no same-area pair was confirmed | Check `image_analysis.stage_signals` and `image_pairs.status`; ask crews to name photos "before"/"after" or keep camera timestamps |
 | `MIN_DISTINCT_SCENES_NOT_MET` although several areas were photographed | Distinct areas are credited only when the model confirms they differ, and only after a confirmed before/after pair per area | See `areaChecks` in the `BEFORE_AFTER_COMPLETED` audit event |
 | `callCapReached: true` in `BEFORE_AFTER_COMPLETED` | More candidates than `pairing.max_pair_calls` | Expected on very large locations; raise the cap if evaluation shows value |
+| Browser shows `ERR_CONNECTION_REFUSED` | The server is not running — check the terminal running `npm run dev` for an "ALVIP cannot start" line | Fix what it says; the server prints `ALVIP is running: http://…` when ready |
+| `ALVIP cannot start: … outdated for this version` (production) | Stored config predates this app version | Run `npm run db:seed` (development applies config automatically on start) |
 | Reset local DB | — | Stop the API, delete `.data/pglite` and `.data/images`, re-run `npm run db:seed` |
 
 "Why is today's queue not clearing?": once Phase 12 lands, the dashboard and the Exception Lane answer this. Until then, check the `system_errors` and `verification_jobs` tables.
