@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { ConfigError, type Env } from "../config/env";
+import { ConfigError, DEFAULT_VISION_MODEL, type Env } from "../config/env";
 import { AnthropicVisionProvider, type ModelPricing } from "./vision/anthropic/AnthropicVisionProvider";
 import { MockVisionProvider } from "./vision/mock/MockVisionProvider";
+import { OpenAIVisionProvider } from "./vision/openai/OpenAIVisionProvider";
 import type { VisionProvider } from "./vision/VisionProvider";
 import type { ImageProvider } from "./images/ImageProvider";
 import { MockImageProvider } from "./images/mock/MockImageProvider";
@@ -33,24 +34,26 @@ export function createIntegrations(env: Env): Integrations {
 
 function createVisionProvider(env: Env): VisionProvider {
   if (env.MOCK_AI) return new MockVisionProvider();
-  if (env.VISION_PROVIDER !== "anthropic") {
-    throw new ConfigError("MOCK_AI=false requires VISION_PROVIDER (supported: anthropic).");
-  }
   if (!env.ALLOW_EXTERNAL_AI_IMAGE_PROCESSING) {
     throw new ConfigError(
-      "VISION_PROVIDER=anthropic sends client images to a third-party API. Set " +
+      `VISION_PROVIDER=${env.VISION_PROVIDER} sends client images to a third-party API. Set ` +
         "ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true only after data-processing approval (IMPLEMENTATION_PLAN U9).",
     );
   }
-  const pricing = JSON.parse(readFileSync(path.join(env.CONFIG_DIR, "model-pricing.json"), "utf8")) as {
-    models: Record<string, ModelPricing>;
-  };
-  return new AnthropicVisionProvider({
-    model: env.VISION_MODEL,
-    effort: env.VISION_EFFORT,
-    fallbacks: env.VISION_FALLBACKS,
-    pricing: pricing.models,
-  });
+  const model = env.VISION_MODEL ?? DEFAULT_VISION_MODEL[env.VISION_PROVIDER];
+  if (!model) {
+    throw new ConfigError(`VISION_PROVIDER=${env.VISION_PROVIDER} has no default model; set VISION_MODEL explicitly.`);
+  }
+  const pricing = (
+    JSON.parse(readFileSync(path.join(env.CONFIG_DIR, "model-pricing.json"), "utf8")) as { models: Record<string, ModelPricing> }
+  ).models;
+
+  switch (env.VISION_PROVIDER) {
+    case "anthropic":
+      return new AnthropicVisionProvider({ model, effort: env.VISION_EFFORT, fallbacks: env.VISION_FALLBACKS, pricing });
+    case "openai":
+      return new OpenAIVisionProvider({ model, pricing });
+  }
 }
 
 function createNetSuiteAdapter(env: Env): NetSuiteAdapter {

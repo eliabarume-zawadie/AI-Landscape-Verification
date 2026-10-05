@@ -6,6 +6,14 @@ import { MAX_ENABLED_AUTOMATION_LEVEL } from "@alvip/shared";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
+export const VISION_PROVIDERS = ["anthropic", "openai"] as const;
+export type VisionProviderName = (typeof VISION_PROVIDERS)[number];
+/** Default model per provider; undefined = must be configured explicitly. */
+export const DEFAULT_VISION_MODEL: Record<VisionProviderName, string | undefined> = {
+  anthropic: "claude-opus-5-5",
+  openai: undefined,
+};
+
 const bool = (defaultValue: boolean) =>
   z
     .enum(["true", "false", "1", "0"])
@@ -52,11 +60,16 @@ const envSchema = z.object({
   STORAGE_DIR: z.string().default(path.join(repoRoot, ".data", "images")),
   IMAGE_FETCH_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
 
-  /** Real vision provider when MOCK_AI=false. Only "anthropic" is implemented. */
-  VISION_PROVIDER: z.enum(["anthropic"]).optional(),
-  VISION_MODEL: z.string().default("claude-opus-5-5"),
+  /** Vision provider used when MOCK_AI=false. */
+  VISION_PROVIDER: z.enum(VISION_PROVIDERS).default("anthropic"),
+  /**
+   * Model ID for the selected provider. Anthropic defaults to claude-opus-5-5; other
+   * providers have no assumed default and must be set explicitly.
+   */
+  VISION_MODEL: z.string().min(1).optional(),
+  /** Anthropic only: effort level. */
   VISION_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("high"),
-  /** Server-side refusal fallback for the Claude adapter; the served model is always recorded. */
+  /** Anthropic only: server-side refusal fallback. The served model is always recorded. */
   VISION_FALLBACKS: bool(true),
   VISION_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
   /** Long side of the copy sent to the vision model. */

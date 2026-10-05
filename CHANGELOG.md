@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1] — Switchable vision provider — 2026-10-05
+
+### Changed
+- `VISION_PROVIDER` now defaults to **`anthropic`** (model `claude-opus-5-5` unless `VISION_MODEL` is set). `MOCK_AI=true` remains the local default.
+
+### Added
+- `OpenAIVisionProvider` (`openai` SDK, Chat Completions, strict JSON-schema output, image detail `high`). Select with `VISION_PROVIDER=openai`; `VISION_MODEL` is required (no OpenAI model is assumed). Refusals and content filtering are recorded as `REFUSED`; truncated/non-JSON output goes to the validator like any provider; SDK errors map to the retry policy. `OPENAI_BASE_URL` allows OpenAI-compatible endpoints.
+- Both real providers still require `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true`.
+- Tests: OpenAI adapter against a stubbed client; provider selection (default, switch, missing model, unknown provider, approval guard for each provider). No real OpenAI or Anthropic call has been made.
+
 ## [0.4.0] — Phase 4: AI vision abstraction — 2026-10-05
 
 ### Added

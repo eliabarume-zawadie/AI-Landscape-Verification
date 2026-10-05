@@ -11,7 +11,7 @@
 
 ## Required production environment
 
-`NODE_ENV=production`, `DATABASE_URL`, `MOCK_NETSUITE=false`, `MOCK_AI=false`, `MOCK_IMAGES=false`, `AUTOMATION_LEVEL` (0–3), plus NetSuite credentials once available. For AI: `VISION_PROVIDER=anthropic`, `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true` (only after data-processing approval), and Anthropic credentials (`ANTHROPIC_API_KEY` or a workload-identity setup). Startup fails if any of these safety settings are wrong.
+`NODE_ENV=production`, `DATABASE_URL`, `MOCK_NETSUITE=false`, `MOCK_AI=false`, `MOCK_IMAGES=false`, `AUTOMATION_LEVEL` (0–3), plus NetSuite credentials once available. For AI: `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true` (only after data-processing approval) and credentials for the provider. Anthropic is the default (`ANTHROPIC_API_KEY` or a workload-identity setup); for OpenAI set `VISION_PROVIDER=openai`, `VISION_MODEL=<evaluated model>` and `OPENAI_API_KEY`. Startup fails if any of these safety settings are wrong.
 
 ## Local production-like stack
 

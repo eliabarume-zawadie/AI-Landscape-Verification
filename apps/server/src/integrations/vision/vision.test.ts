@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ConfigError } from "../../config/env";
 import { loadVerificationConfigFromDir } from "../../config/verificationConfig";
@@ -7,6 +8,7 @@ import { CONFIG_DIR, createTestDb, REPO_ROOT, testEnv } from "../../test/helpers
 import { createIntegrations } from "../index";
 import { AnthropicVisionProvider } from "./anthropic/AnthropicVisionProvider";
 import { MockVisionProvider } from "./mock/MockVisionProvider";
+import { OpenAIVisionProvider } from "./openai/OpenAIVisionProvider";
 import { IMAGE_ANALYSIS_PROMPT, loadPrompt, registerPrompt, renderImageAnalysisPrompt } from "./prompts";
 import { VisionProviderError, type ImageAnalysisRequest } from "./VisionProvider";
 import path from "node:path";
@@ -185,31 +187,134 @@ describe("AnthropicVisionProvider", () => {
   });
 });
 
+// ------------------------------------------------------------------ OpenAI adapter
+
+function stubOpenAI(respond: () => unknown) {
+  const calls: Record<string, unknown>[] = [];
+  const client = {
+    chat: {
+      completions: {
+        create: async (args: Record<string, unknown>) => {
+          calls.push(args);
+          const r = respond();
+          if (r instanceof Error) throw r;
+          return r;
+        },
+      },
+    },
+  } as unknown as Pick<OpenAI, "chat">;
+  return { client, calls };
+}
+const completion = (message: Record<string, unknown>, finishReason = "stop") => ({
+  model: "gpt-test-served",
+  choices: [{ index: 0, finish_reason: finishReason, message: { role: "assistant", content: null, refusal: null, ...message } }],
+  usage: { prompt_tokens: 1000, completion_tokens: 200, total_tokens: 1200 },
+});
+const openaiPricing = { "gpt-test-served": { input_per_mtok: 2, output_per_mtok: 8 } };
+const openai = (respond: () => unknown, pricingTable: Record<string, { input_per_mtok: number; output_per_mtok: number }> = {}) =>
+  new OpenAIVisionProvider({ model: "gpt-test", pricing: pricingTable, client: stubOpenAI(respond).client });
+
+describe("OpenAIVisionProvider", () => {
+  it("sends the image as a data URL with a strict JSON schema", async () => {
+    const { client, calls } = stubOpenAI(() => completion({ content: '{"image_relevant": false}' }));
+    const p = new OpenAIVisionProvider({ model: "gpt-test", pricing: openaiPricing, client });
+    const r = await p.analyzeImage(request);
+
+    expect(calls[0]).toMatchObject({
+      model: "gpt-test",
+      response_format: { type: "json_schema", json_schema: { name: "image_analysis", schema: { type: "object" }, strict: true } },
+    });
+    const messages = calls[0]!.messages as { role: string; content: unknown }[];
+    expect(messages[0]).toEqual({ role: "system", content: "SYSTEM PROMPT" });
+    const image = (messages[1]!.content as { type: string; image_url?: { url: string; detail: string } }[])[0]!;
+    expect(image.image_url!.url).toBe(`data:image/jpeg;base64,${Buffer.from("jpeg-bytes").toString("base64")}`);
+    expect(image.image_url!.detail).toBe("high");
+
+    expect(r).toMatchObject({ output: { image_relevant: false }, servedModel: "gpt-test-served" });
+    expect(r.usage.costUsd).toBeCloseTo((1000 * 2 + 200 * 8) / 1e6);
+    expect(p.info).toMatchObject({ provider: "openai", model: "gpt-test", external: true });
+  });
+
+  it("reports refusals and content filtering as refused", async () => {
+    const refusal = await openai(() => completion({ refusal: "Cannot help with that." })).analyzeImage(request);
+    expect(refusal).toMatchObject({ output: null, refused: { explanation: "Cannot help with that." } });
+    expect(refusal.usage.costUsd).toBeUndefined();
+
+    const filtered = await openai(() => completion({ content: "" }, "content_filter")).analyzeImage(request);
+    expect(filtered.refused).toMatchObject({ category: "content_filter" });
+  });
+
+  it("passes non-JSON and truncated output through for the validator to reject", async () => {
+    expect((await openai(() => completion({ content: "nope" })).analyzeImage(request)).output).toBe("nope");
+    const cut = await openai(() => completion({ content: '{"a":' }, "length")).analyzeImage(request);
+    expect(cut.output).toMatchObject({ __truncated: true });
+  });
+
+  it("maps SDK errors onto retry categories", async () => {
+    const fail = async (err: Error) => openai(() => err).analyzeImage(request).catch((e: VisionProviderError) => e.kind);
+    const sdkError = <T extends object>(cls: { prototype: T }) => Object.assign(Object.create(cls.prototype) as T & Error, { message: "x" });
+    expect(await fail(sdkError(OpenAI.AuthenticationError))).toBe("AUTHENTICATION");
+    expect(await fail(sdkError(OpenAI.RateLimitError))).toBe("RATE_LIMIT");
+    expect(await fail(sdkError(OpenAI.BadRequestError))).toBe("INVALID_REQUEST");
+    expect(await fail(sdkError(OpenAI.InternalServerError))).toBe("TRANSIENT");
+    expect(await fail(new Error("ECONNRESET"))).toBe("TRANSIENT");
+  });
+});
+
+// ------------------------------------------------------------------ selection
+
+function withEnvKeys<T>(fn: () => T): T {
+  const saved: Record<string, string | undefined> = {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  };
+  for (const k of Object.keys(saved)) process.env[k] = "test-key-not-real";
+  try {
+    return fn();
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+const real = (extra: Record<string, string> = {}) =>
+  testEnv({ MOCK_AI: "false", ALLOW_EXTERNAL_AI_IMAGE_PROCESSING: "true", ...extra });
+
 describe("vision provider selection", () => {
   it("uses the mock in mock mode", () => {
     expect(createIntegrations(testEnv()).vision).toBeInstanceOf(MockVisionProvider);
   });
 
-  it("refuses to start without a configured provider when mocks are off", () => {
-    expect(() => createIntegrations(testEnv({ MOCK_AI: "false" }))).toThrow(/VISION_PROVIDER/);
+  it("defaults to Anthropic (claude-opus-5-5) when mocks are off", () => {
+    expect(testEnv().VISION_PROVIDER).toBe("anthropic");
+    const v = withEnvKeys(() => createIntegrations(real()).vision);
+    expect(v).toBeInstanceOf(AnthropicVisionProvider);
+    expect(v.info).toMatchObject({ provider: "anthropic", model: "claude-opus-5-5", external: true });
   });
 
-  it("refuses to send images externally without explicit approval", () => {
-    expect(() => createIntegrations(testEnv({ MOCK_AI: "false", VISION_PROVIDER: "anthropic" }))).toThrow(/ALLOW_EXTERNAL_AI_IMAGE_PROCESSING/);
+  it("switches to OpenAI with an explicit model", () => {
+    const v = withEnvKeys(() => createIntegrations(real({ VISION_PROVIDER: "openai", VISION_MODEL: "my-openai-vision-model" })).vision);
+    expect(v).toBeInstanceOf(OpenAIVisionProvider);
+    expect(v.info).toMatchObject({ provider: "openai", model: "my-openai-vision-model" });
   });
 
-  it("builds the Claude adapter (default model claude-opus-5-5) when approved", () => {
-    const prev = process.env.ANTHROPIC_API_KEY;
-    process.env.ANTHROPIC_API_KEY = "test-key-not-real";
-    try {
-      const v = createIntegrations(
-        testEnv({ MOCK_AI: "false", VISION_PROVIDER: "anthropic", ALLOW_EXTERNAL_AI_IMAGE_PROCESSING: "true" }),
-      ).vision;
-      expect(v).toBeInstanceOf(AnthropicVisionProvider);
-      expect(v.info).toMatchObject({ provider: "anthropic", model: "claude-opus-5-5", external: true });
-    } finally {
-      if (prev === undefined) delete process.env.ANTHROPIC_API_KEY;
-      else process.env.ANTHROPIC_API_KEY = prev;
-    }
+  it("refuses OpenAI without a model rather than guessing one", () => {
+    expect(() => withEnvKeys(() => createIntegrations(real({ VISION_PROVIDER: "openai" })))).toThrow(/set VISION_MODEL/);
+  });
+
+  it("lets VISION_MODEL override the Anthropic default", () => {
+    const v = withEnvKeys(() => createIntegrations(real({ VISION_MODEL: "claude-sonnet-5-5" })).vision);
+    expect(v.info.model).toBe("claude-sonnet-5-5");
+  });
+
+  it("rejects unknown providers", () => {
+    expect(() => testEnv({ VISION_PROVIDER: "someone-else" })).toThrow(/VISION_PROVIDER/);
+  });
+
+  it.each(["anthropic", "openai"])("never sends images to %s without explicit approval", (provider) => {
+    expect(() => createIntegrations(testEnv({ MOCK_AI: "false", VISION_PROVIDER: provider, VISION_MODEL: "x" }))).toThrow(
+      /ALLOW_EXTERNAL_AI_IMAGE_PROCESSING/,
+    );
   });
 });

@@ -45,8 +45,11 @@ Analysis statuses: `ANALYZED`, `CACHED`, `SKIPPED_UNUSABLE`, `SKIPPED_DUPLICATE`
 
 | Provider | When | Notes |
 |---|---|---|
-| `MockVisionProvider` | `MOCK_AI=true` | Reports the scenario's scripted signals; simulates outage, malformed, hallucination, refusal |
-| `AnthropicVisionProvider` | `MOCK_AI=false`, `VISION_PROVIDER=anthropic`, `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true` | `claude-opus-5-5` by default; structured JSON output; effort `high`; server-side refusal fallback; served model recorded per image |
+| `MockVisionProvider` | `MOCK_AI=true` (local default) | Reports the scenario's scripted signals; simulates outage, malformed, hallucination, refusal |
+| `AnthropicVisionProvider` | `MOCK_AI=false` — **default provider** (`VISION_PROVIDER=anthropic`) | `claude-opus-5-5` unless `VISION_MODEL` is set; structured JSON output; `VISION_EFFORT` (default `high`); server-side refusal fallback (`VISION_FALLBACKS`) |
+| `OpenAIVisionProvider` | `MOCK_AI=false`, `VISION_PROVIDER=openai`, `VISION_MODEL` **required** | Chat Completions with strict JSON-schema output, image `detail: high`; `OPENAI_BASE_URL` may point to an OpenAI-compatible endpoint |
+
+Both real providers require `ALLOW_EXTERNAL_AI_IMAGE_PROCESSING=true`. Switching provider or model changes the cache key and is recorded on every run and image, so results from different models never mix and evaluation can compare them (Phase 13). Model choice for production should come from that evaluation, not from defaults.
 
 Adding a provider means implementing `VisionProvider.analyzeImage` (return raw output, served model, usage, refusal). Validation, caching and recording are shared.
 
