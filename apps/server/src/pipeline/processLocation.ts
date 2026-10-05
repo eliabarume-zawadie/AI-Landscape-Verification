@@ -9,7 +9,9 @@ import { reachableErrorStatus, transitionLocation } from "../services/locationTr
 import type { JobContext, JobHandler } from "./jobHandler";
 import { JOB_TYPES, type ProcessLocationPayload } from "./jobTypes";
 import { runImageStage } from "./stages/imageStage";
+import type { AiRecommendation, Lane, RiskLevel } from "@alvip/shared";
 import { runBundleStage } from "./stages/bundleStage";
+import { runRiskStage } from "./stages/riskStage";
 import { runEvidenceStage, servicesToObserve } from "./stages/evidenceStage";
 import { runPairStage } from "./stages/pairStage";
 import { runVisionStage } from "./stages/visionStage";
@@ -127,15 +129,19 @@ export const processLocationHandler: JobHandler = {
       actor,
     });
 
-    // ---- Stage 8 (risk) plugs in here.
+    // ---- Stage: risk, recommendation and lane (Phase 8)
+    const outcome = await runRiskStage(ctx, { locationId: loc.id, runId, assessments, config, profile, actor });
 
     await finishRun(ctx, {
       locationId: loc.id,
       runId,
       actor,
       aiAnalysisPerformed: true,
-      reason: "RISK_ENGINE_NOT_YET_AVAILABLE",
+      reason: "AI_ASSESSMENT_COMPLETE",
       via: ["AI_REVIEW_READY"],
+      recommendation: outcome.recommendation,
+      lane: outcome.lane,
+      riskLevel: outcome.risk.level,
     });
   },
 
@@ -272,19 +278,28 @@ async function finishRun(
     aiAnalysisPerformed: boolean;
     reason: string;
     via?: ("AI_REVIEW_READY")[];
+    recommendation?: AiRecommendation;
+    lane?: Lane;
+    riskLevel?: RiskLevel;
   },
 ): Promise<void> {
+  const recommendation = input.recommendation ?? "NEEDS_HUMAN_REVIEW";
+  const lane = input.lane ?? "HUMAN_REVIEW";
   await ctx.db.transaction(async (tx) => {
     await tx
       .update(processingRuns)
-      .set({ status: "SUCCEEDED", completedAt: sql`now()`, aiRecommendation: "NEEDS_HUMAN_REVIEW", lane: "HUMAN_REVIEW" })
+      .set({ status: "SUCCEEDED", completedAt: sql`now()`, aiRecommendation: recommendation, lane })
       .where(eq(processingRuns.id, input.runId));
+    await tx
+      .update(locations)
+      .set({ aiRecommendation: input.aiAnalysisPerformed ? recommendation : null, riskLevel: input.riskLevel ?? null })
+      .where(eq(locations.id, input.locationId));
     await recordAudit(tx, {
       eventType: "ANALYSIS_COMPLETED",
       actor: input.actor,
       locationId: input.locationId,
       runId: input.runId,
-      data: { aiAnalysisPerformed: input.aiAnalysisPerformed, reason: input.reason, recommendation: "NEEDS_HUMAN_REVIEW" },
+      data: { aiAnalysisPerformed: input.aiAnalysisPerformed, reason: input.reason, recommendation, lane, riskLevel: input.riskLevel ?? null },
     });
     for (const step of input.via ?? []) {
       await transitionLocation(tx, { locationId: input.locationId, to: step, actor: input.actor, runId: input.runId });
@@ -294,7 +309,7 @@ async function finishRun(
       to: "HUMAN_REVIEW",
       actor: input.actor,
       runId: input.runId,
-      lane: "HUMAN_REVIEW",
+      lane,
       reason: input.reason,
     });
   });

@@ -48,6 +48,8 @@ export async function requestReprocess(
       actor: input.actor,
       reason: `reprocess: ${input.reason}`,
     });
+    // The previous run's risk/recommendation no longer describe the location.
+    await tx.update(locations).set({ riskLevel: null, aiRecommendation: null }).where(eq(locations.id, input.locationId));
 
     const [profile] = await tx
       .select({ profile: clientProfiles.profile })

@@ -56,6 +56,12 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 - `GET /api/locations/:id/evidence` adds `bundle: { totalImages, entries: [{ imageId, ref, rank, reasons, services: [{ service, role }] }] }` and, per service, `bundle: [{ imageId, ref, roles }]`.
 - `GET /api/locations/:id/images?order=evidence` returns images strongest-evidence first; each item has `inBundle` and `analysis.evidenceRank`; `summary.inBundle`.
 
+### Phase 8
+
+- `GET /api/locations` adds filters `risk` (LOW/MEDIUM/HIGH) and `recommendation`, sort `risk`; items include `riskLevel`, `aiRecommendation`.
+- `GET /api/queue/summary` adds `awaitingReviewByRisk`.
+- `GET /api/locations/:id/evidence` adds `recommendation { value, explanation, lane }` and `risk { level, factors: [{ factor, detail }] }`.
+
 ## Planned (PRD §76)
 
 | Method | Path | Phase |

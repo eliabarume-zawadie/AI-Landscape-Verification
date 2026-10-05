@@ -110,6 +110,29 @@ Per service, in this order (each image listed once, with all its services and ro
 
 All images also get an evidence rank for the "strongest first" view: bundle order, then quality/strength/pair/counter-evidence, duplicates after their representative, unusable last.
 
+## Risk, recommendation and lane (implemented, Phase 8)
+
+| Factor | Weight | Floor |
+|---|---|---|
+| CONTRADICTION | 1.0 | HIGH |
+| UNABLE_TO_DETERMINE | 0.6 | HIGH |
+| NOT_SUPPORTED, INSUFFICIENT_EVIDENCE | 0.4 | MEDIUM |
+| CLIENT_STRICT_RULE | 0.3 | MEDIUM |
+| ANALYSIS_FAILURES | 0.2 | MEDIUM |
+| MISSING_BEFORE_AFTER, WEAK_COUNTER_EVIDENCE, CONFLICTING_SERVICE_OUTCOMES | 0.3 | — |
+| LOW_CONFIDENCE, POOR_IMAGE_QUALITY (≥ 30% unusable), UNUSUAL_SCENE (≥ 30%) | 0.2 | — |
+| DUPLICATE_HEAVY (≥ 50% duplicates) | 0.15 | — |
+
+Level = max(band(score; MEDIUM ≥ 0.3, HIGH ≥ 0.6), floors). All values provisional (`config/thresholds.json` → `risk`).
+
+| Recommendation | When |
+|---|---|
+| `RECOMMEND_APPROVE` | All services SUPPORTED, none flagged for a human, risk LOW, no rule requiring review |
+| `RECOMMEND_REJECT` | A service NOT_SUPPORTED and nothing CONTRADICTORY / UNABLE_TO_DETERMINE |
+| `NEEDS_HUMAN_REVIEW` | Everything else |
+
+Lane: `FAST` only at automation level ≥ 3, not in shadow mode, for `RECOMMEND_APPROVE` + LOW risk; otherwise `HUMAN_REVIEW`. Both are human-review states; the AI never approves.
+
 ## Division of responsibility
 
 | Vision model (non-deterministic) | ALVIP code (deterministic, tested, versioned) |

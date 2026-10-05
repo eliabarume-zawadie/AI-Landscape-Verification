@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
-import { LANES, LOCATION_STATUSES, REPROCESS_REASONS } from "@alvip/shared";
+import { AI_RECOMMENDATIONS, LANES, LOCATION_STATUSES, REPROCESS_REASONS, RISK_LEVELS } from "@alvip/shared";
 import {
   auditEvents,
   clients,
@@ -25,13 +25,16 @@ const idParam = z.object({ id: z.string().uuid() });
 const listQuery = z.object({
   status: z.enum(LOCATION_STATUSES).optional(),
   lane: z.enum(LANES).optional(),
+  risk: z.enum(RISK_LEVELS).optional(),
+  recommendation: z.enum(AI_RECOMMENDATIONS).optional(),
   client: z.string().optional(),
   service: z.string().optional(),
   q: z.string().trim().min(1).max(200).optional(),
   runId: z.string().uuid().optional(),
   receivedFrom: z.coerce.date().optional(),
   receivedTo: z.coerce.date().optional(),
-  sort: z.enum(["oldest", "newest"]).default("oldest"),
+  /** Default oldest first (PRD §35); "risk" = highest risk first, then oldest. */
+  sort: z.enum(["oldest", "newest", "risk"]).default("oldest"),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -52,6 +55,8 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
     const where: SQL[] = [];
     if (f.status) where.push(eq(locations.status, f.status));
     if (f.lane) where.push(eq(locations.lane, f.lane));
+    if (f.risk) where.push(eq(locations.riskLevel, f.risk));
+    if (f.recommendation) where.push(eq(locations.aiRecommendation, f.recommendation));
     if (f.client) where.push(eq(clients.code, f.client));
     if (f.receivedFrom) where.push(gte(locations.receivedAt, f.receivedFrom));
     if (f.receivedTo) where.push(lte(locations.receivedAt, f.receivedTo));
@@ -79,6 +84,8 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
         client: clients.code,
         status: locations.status,
         lane: locations.lane,
+        riskLevel: locations.riskLevel,
+        aiRecommendation: locations.aiRecommendation,
         receivedAt: locations.receivedAt,
         statusChangedAt: locations.statusChangedAt,
         currentRunId: locations.currentRunId,
@@ -88,7 +95,11 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
       .from(locations)
       .innerJoin(clients, eq(clients.id, locations.clientId))
       .where(condition)
-      .orderBy(f.sort === "oldest" ? asc(locations.receivedAt) : desc(locations.receivedAt))
+      .orderBy(
+        ...(f.sort === "risk"
+          ? [sql`case ${locations.riskLevel} when 'HIGH' then 0 when 'MEDIUM' then 1 when 'LOW' then 2 else 3 end`, asc(locations.receivedAt)]
+          : [f.sort === "oldest" ? asc(locations.receivedAt) : desc(locations.receivedAt)]),
+      )
       .limit(f.limit)
       .offset(f.offset);
 
@@ -117,6 +128,8 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
         serviceDate: locations.serviceDate,
         status: locations.status,
         lane: locations.lane,
+        riskLevel: locations.riskLevel,
+        aiRecommendation: locations.aiRecommendation,
         priority: locations.priority,
         receivedAt: locations.receivedAt,
         statusChangedAt: locations.statusChangedAt,
@@ -273,9 +286,14 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
 
   /** Counts by status and lane — the precursor of the Phase 12 dashboard. */
   app.get("/api/queue/summary", { preHandler: requireUser }, async () => {
-    const [byStatus, byLane, jobs, [oldest]] = await Promise.all([
+    const [byStatus, byLane, byRisk, jobs, [oldest]] = await Promise.all([
       ctx.db.select({ status: locations.status, n: count() }).from(locations).groupBy(locations.status),
       ctx.db.select({ lane: locations.lane, n: count() }).from(locations).groupBy(locations.lane),
+      ctx.db
+        .select({ risk: locations.riskLevel, n: count() })
+        .from(locations)
+        .where(inArray(locations.status, ["HUMAN_REVIEW", "AI_REVIEW_READY", "ESCALATED"]))
+        .groupBy(locations.riskLevel),
       ctx.db.select({ status: verificationJobs.status, n: count() }).from(verificationJobs).groupBy(verificationJobs.status),
       ctx.db
         .select({ receivedAt: sql<Date | null>`min(${locations.receivedAt})` })
@@ -285,6 +303,8 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
     return {
       byStatus: Object.fromEntries(byStatus.map((r) => [r.status, r.n])),
       byLane: Object.fromEntries(byLane.map((r) => [r.lane ?? "NONE", r.n])),
+      /** Awaiting review, by risk (NONE = no AI assessment, e.g. manual fallback). */
+      awaitingReviewByRisk: Object.fromEntries(byRisk.map((r) => [r.risk ?? "NONE", r.n])),
       jobs: Object.fromEntries(jobs.map((r) => [r.status, r.n])),
       oldestUnprocessedReceivedAt: oldest?.receivedAt ?? null,
     };

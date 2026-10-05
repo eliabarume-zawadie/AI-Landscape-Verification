@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.0] — Phase 8: Risk engine, recommendation and lanes — 2026-10-05
+
+### Added
+- **Risk engine** (`domain/risk.ts`, pure): 13 named factors (PRD §24): contradiction, unable to determine, not supported, insufficient evidence, client/service rule requiring review, failed analyses, missing before/after, weak counter-evidence, conflicting outcomes across services, low confidence, poor image quality, unusual/irrelevant scenes, duplicate-heavy evidence. Score = sum of present factor weights (capped) banded into LOW/MEDIUM/HIGH; contradiction and "unable to determine" force HIGH; not supported, insufficient evidence, client rules and failed analyses force at least MEDIUM. Each factor has a plain-language detail. All weights/floors/ratios are configurable and provisional; the score is internal only.
+- **AI recommendation**: `RECOMMEND_APPROVE` only when every service is SUPPORTED with HIGH confidence, none is flagged for a human, risk is LOW and no rule requires review; `RECOMMEND_REJECT` when a service is not supported and nothing is contradictory or undetermined; otherwise `NEEDS_HUMAN_REVIEW` with the top reasons. Recommendations never change the workflow: approval is still only reachable from human review.
+- **Lanes** (PRD §36, §53): Fast Lane only at automation level 3, for a low-risk approve recommendation, never in shadow mode, and still awaiting a human; Human Review otherwise; Exception Lane unchanged.
+- Risk stage persists `risk_assessments` (level, internal score, factors, recommendation, lane) and the run's recommendation/lane; `locations.risk_level` / `ai_recommendation` for queue filters (cleared on reprocess); `RISK_CALCULATED` audit event.
+- APIs: location list filters `risk`, `recommendation`, sort `risk` (highest first, then oldest); queue summary `awaitingReviewByRisk`; evidence endpoint returns `recommendation` and `risk` (level + named factors, no score).
+- Thresholds **v6** (provisional): `risk.weights`, `risk.floors`, `risk.*_ratio`.
+- Migration `0009`.
+
+### Changed during the phase
+- The first approve rule allowed a recommendation when a service was supported only at MEDIUM confidence (risk was still LOW). Tightened: any service flagged for a human blocks `RECOMMEND_APPROVE`.
+
+### Outcomes on mock scenarios (automation level 1)
+- Demo 2 LOW / recommend approve; demo 1 and 7 LOW / needs review (one service at medium confidence); demo 4 HIGH (contradiction); demo 5 HIGH (poor images, no before/after); demo 6 MEDIUM (duplicate-heavy); demo 9 HIGH (before/after mismatch); demo 11 HIGH (client C rules, fertilization). At level 3 only demo 2 enters the Fast Lane; none in shadow mode.
+
+### Verified
+- 361 tests passing.
+
 ## [0.7.0] — Phase 7: Evidence bundling — 2026-10-05
 
 ### Added

@@ -44,11 +44,11 @@ describe("evidence stage", () => {
     expect(Object.keys(a).sort()).toEqual(["edging", "mowing", "shrub_pruning", "weed_removal"]);
     // With before/after established, strong services need no extra scrutiny…
     expect(a.mowing).toMatchObject({ status: "SUPPORTED", confidenceLevel: "HIGH", humanRequired: false });
-    // …but nothing is auto-decided: a person makes the final decision (PRD §27).
+    // …the AI may recommend approval, but nothing is auto-decided: a person decides (PRD §27).
     const l = await loc("NS-DEMO-002");
     expect(l.status).toBe("HUMAN_REVIEW");
     const [run] = await t.h.db.select().from(processingRuns).where(eq(processingRuns.id, l.currentRunId!));
-    expect(run!.aiRecommendation).toBe("NEEDS_HUMAN_REVIEW");
+    expect(run!.aiRecommendation).toBe("RECOMMEND_APPROVE");
   });
 
   it("demo case 4: flags the uncut section as a contradiction and records the image pair", async () => {

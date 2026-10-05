@@ -1,20 +1,34 @@
 {
-  "version": "thresholds-v5",
+  "version": "thresholds-v6",
   "provisional": true,
-  "_note": "PROVISIONAL placeholders (IMPLEMENTATION_PLAN A7). Replace with values derived from golden-dataset evaluation before any rollout. v5 adds evidence bundle settings.",
-  "confidence_bands": { "high": 0.85, "medium": 0.6 },
+  "_note": "PROVISIONAL placeholders (IMPLEMENTATION_PLAN A7). Replace with values derived from golden-dataset evaluation before any rollout. v6 adds risk factor weights, floors and ratios.",
+  "confidence_bands": {
+    "high": 0.85,
+    "medium": 0.6
+  },
   "quality": {
     "min_usable_score": 0.5,
     "blur_laplacian_variance_min": 100,
     "dark_mean_luminance_max": 40,
     "bright_mean_luminance_min": 225,
     "min_dimension_px": 320,
-    "accepted_formats": ["jpeg", "png", "webp", "heif"],
+    "accepted_formats": [
+      "jpeg",
+      "png",
+      "webp",
+      "heif"
+    ],
     "max_image_bytes": 26214400,
     "max_input_pixels": 50000000
   },
-  "duplicates": { "near_duplicate_hamming_max": 10, "near_duplicate_mad_max": 6 },
-  "evidence": { "min_independent_images_for_high": 2, "counter_evidence_min_strength": 0.6 },
+  "duplicates": {
+    "near_duplicate_hamming_max": 10,
+    "near_duplicate_mad_max": 6
+  },
+  "evidence": {
+    "min_independent_images_for_high": 2,
+    "counter_evidence_min_strength": 0.6
+  },
   "pairing": {
     "min_time_gap_minutes": 20,
     "time_gap_dominance_ratio": 3,
@@ -24,7 +38,41 @@
     "max_pair_calls": 60,
     "min_same_area_confidence": 0.8
   },
-  "bundle": { "max_images": 16, "per_service_supporting": 3 },
-  "risk": { "medium_at": 0.3, "high_at": 0.6 },
-  "metrics": { "min_sample_size": 30 }
+  "bundle": {
+    "max_images": 16,
+    "per_service_supporting": 3
+  },
+  "risk": {
+    "medium_at": 0.3,
+    "high_at": 0.6,
+    "weights": {
+      "CONTRADICTION": 1.0,
+      "UNABLE_TO_DETERMINE": 0.6,
+      "NOT_SUPPORTED": 0.4,
+      "INSUFFICIENT_EVIDENCE": 0.4,
+      "CLIENT_STRICT_RULE": 0.3,
+      "ANALYSIS_FAILURES": 0.2,
+      "MISSING_BEFORE_AFTER": 0.3,
+      "WEAK_COUNTER_EVIDENCE": 0.3,
+      "CONFLICTING_SERVICE_OUTCOMES": 0.3,
+      "LOW_CONFIDENCE": 0.2,
+      "POOR_IMAGE_QUALITY": 0.2,
+      "UNUSUAL_SCENE": 0.2,
+      "DUPLICATE_HEAVY": 0.15
+    },
+    "floors": {
+      "CONTRADICTION": "HIGH",
+      "UNABLE_TO_DETERMINE": "HIGH",
+      "NOT_SUPPORTED": "MEDIUM",
+      "INSUFFICIENT_EVIDENCE": "MEDIUM",
+      "CLIENT_STRICT_RULE": "MEDIUM",
+      "ANALYSIS_FAILURES": "MEDIUM"
+    },
+    "poor_quality_ratio": 0.3,
+    "duplicate_heavy_ratio": 0.5,
+    "unusual_scene_ratio": 0.3
+  },
+  "metrics": {
+    "min_sample_size": 30
+  }
 }

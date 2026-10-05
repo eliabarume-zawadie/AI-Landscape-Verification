@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RISK_FACTORS } from "./enums";
 
 /** Lower snake-case identifier, e.g. "mowing", "maintained_lawn". */
 export const codeSchema = z
@@ -187,7 +188,18 @@ export const thresholdsSchema = z
       /** Strongest supporting images per service (after must-includes). */
       per_service_supporting: z.number().int().min(1),
     }),
-    risk: z.object({ medium_at: unitInterval, high_at: unitInterval }),
+    risk: z.object({
+      /** Internal score bands (score = sum of present factor weights, capped at 1). */
+      medium_at: unitInterval,
+      high_at: unitInterval,
+      weights: z.record(z.enum(RISK_FACTORS), z.number().min(0)),
+      /** Minimum level a factor forces, regardless of score. */
+      floors: z.partialRecord(z.enum(RISK_FACTORS), z.enum(["MEDIUM", "HIGH"])),
+      /** Ratios over a location's images that trigger the image-based factors. */
+      poor_quality_ratio: unitInterval,
+      duplicate_heavy_ratio: unitInterval,
+      unusual_scene_ratio: unitInterval,
+    }),
     metrics: z.object({ min_sample_size: z.number().int().positive() }),
   })
   .superRefine((t, ctx) => {

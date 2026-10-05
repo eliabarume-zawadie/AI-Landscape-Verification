@@ -1,6 +1,6 @@
 # ALVIP — Implementation Plan
 
-**Status:** Phases 0–7 complete · Phase 8 next
+**Status:** Phases 0–8 complete · Phase 9 next
 **Source spec:** [PRD.md](PRD.md) v1.0
 **Last updated:** 2026-10-05
 
@@ -275,6 +275,7 @@ interface VisionProvider {
 | A19 | Before/after stage comes only from filename words and capture times (needs crews to name photos or cameras to keep timestamps — confirm with real data, U8). Without either, before/after cannot be established and services that require it stay INSUFFICIENT. |
 | A20 | Before/after pairing and distinct-area checks use extra vision calls (≈ 1 per before-photo plus a few per location, capped by `pairing.max_pair_calls`). Cost impact to be measured on real data. |
 | A21 | Bundle size: up to 3 strongest supporting photos per service plus all must-include evidence, soft cap 16. On a large multi-area site this can be lean (e.g. 4 of 170); reviewers may prefer more area coverage — tune `bundle.*` with the team. |
+| A22 | Risk weights, floors and ratios are provisional placeholders chosen to err toward review; they must be recalibrated from golden-dataset evaluation (Phase 13). The Fast Lane exists only at automation level 3 and still requires a human. |
 | A11 | A client profile can make a service's confidence threshold **stricter** but never looser than the service default. Any rule requiring human review (service default, client-wide, client per-service) wins. |
 
 ---
@@ -330,7 +331,7 @@ interface VisionProvider {
 | 5 | Service evidence aggregation (5-state status) | ✅ Done (CHANGELOG 0.5.0) — includes contradiction detection (needed for the CONTRADICTORY status) |
 | 6 | Before/after pairing + comparison | ✅ Done (CHANGELOG 0.6.0) |
 | 7 | Evidence ranking, diversity, bundling | ✅ Done (CHANGELOG 0.7.0) |
-| 8 | Risk engine, location recommendation, lanes (contradiction detection delivered in Phase 5) | ⏳ |
+| 8 | Risk engine, location recommendation, lanes (contradiction detection delivered in Phase 5) | ✅ Done (CHANGELOG 0.8.0) |
 | 9 | Reviewer workspace, location detail, search | ⏳ |
 | 10 | Overrides, feedback, knowledge base | ⏳ |
 | 11 | NetSuite outbox sync (mock; production adapter when U1–U6 are resolved) | ⏳ |

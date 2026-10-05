@@ -198,6 +198,9 @@ export const locations = pgTable(
     serviceDate: ts("service_date"),
     status: locationStatusEnum("status").notNull().default("NEW"),
     lane: laneEnum("lane"),
+    /** Current run's risk level and AI recommendation (for queue filters; history is per run). */
+    riskLevel: riskEnum("risk_level"),
+    aiRecommendation: aiRecommendationEnum("ai_recommendation"),
     priority: integer("priority").notNull().default(0),
     receivedAt: ts("received_at").notNull().defaultNow(),
     currentRunId: uuid("current_run_id"),

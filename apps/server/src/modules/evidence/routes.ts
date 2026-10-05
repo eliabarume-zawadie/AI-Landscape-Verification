@@ -11,6 +11,7 @@ import {
   images,
   locations,
   processingRuns,
+  riskAssessments,
   serviceAssessments,
 } from "../../db/schema";
 import { band } from "../../domain/evidence";
@@ -44,7 +45,7 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!run) return reply.code(404).send({ error: "NOT_FOUND" });
 
     const config = await loadActiveConfig(ctx.db);
-    const [assessments, items, conflicts, pairRows, bundleRows] = await Promise.all([
+    const [assessments, items, conflicts, pairRows, bundleRows, [riskRow]] = await Promise.all([
       ctx.db.select().from(serviceAssessments).where(eq(serviceAssessments.runId, runId)).orderBy(asc(serviceAssessments.serviceCode)),
       ctx.db
         .select({
@@ -73,7 +74,11 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
         .innerJoin(images, eq(images.id, evidenceBundleItems.imageId))
         .where(eq(evidenceBundleItems.runId, runId))
         .orderBy(asc(evidenceBundleItems.rank)),
+      ctx.db.select().from(riskAssessments).where(eq(riskAssessments.runId, runId)),
     ]);
+    const riskDetail = riskRow?.factors as
+      | { factors: { factor: string; detail: string }[]; recommendation: string; recommendationExplanation: string; lane: string }
+      | undefined;
     const pairImageIds = [...new Set(pairRows.flatMap((p) => [p.beforeImageId, p.afterImageId]))];
     const pairRefs = new Map(
       pairImageIds.length
@@ -86,6 +91,9 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
       runId,
       runNumber: run.runNumber,
       thresholdsProvisional: config.thresholds.provisional,
+      /** AI suggestion only — a person makes every final decision. No internal score. */
+      recommendation: riskDetail ? { value: riskDetail.recommendation, explanation: riskDetail.recommendationExplanation, lane: riskDetail.lane } : null,
+      risk: riskRow ? { level: riskRow.level, factors: riskDetail!.factors.map((f) => ({ factor: f.factor, detail: f.detail })) } : null,
       /** Strongest evidence first (PRD §20): contradictions and counter-evidence are always included. */
       bundle: {
         totalImages: (await ctx.db.select({ id: imageAnalysis.id }).from(imageAnalysis).where(eq(imageAnalysis.runId, runId))).length,

@@ -137,3 +137,21 @@ export const REPROCESS_REASONS = [
   "TECHNICAL_ERROR",
 ] as const;
 export type ReprocessReason = (typeof REPROCESS_REASONS)[number];
+
+/** PRD §24 risk factors. Weights and floors live in thresholds (provisional). */
+export const RISK_FACTORS = [
+  "CONTRADICTION",
+  "UNABLE_TO_DETERMINE",
+  "NOT_SUPPORTED",
+  "INSUFFICIENT_EVIDENCE",
+  "CLIENT_STRICT_RULE",
+  "ANALYSIS_FAILURES",
+  "MISSING_BEFORE_AFTER",
+  "WEAK_COUNTER_EVIDENCE",
+  "CONFLICTING_SERVICE_OUTCOMES",
+  "LOW_CONFIDENCE",
+  "POOR_IMAGE_QUALITY",
+  "UNUSUAL_SCENE",
+  "DUPLICATE_HEAVY",
+] as const;
+export type RiskFactor = (typeof RISK_FACTORS)[number];
