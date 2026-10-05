@@ -1,0 +1,15 @@
+{
+  "client": "DEMO_CLIENT_B",
+  "display_name": "Demo Client B (mock data)",
+  "required_services": ["landscape_maintenance", "trash_debris_leaves_removal"],
+  "equipment_alone_is_insufficient": true,
+  "always_human_review": false,
+  "image_requirements": { "min_usable_images": 3, "min_distinct_scenes": 2 },
+  "service_overrides": {
+    "landscape_maintenance": {
+      "required_components": ["mowing", "edging", "trash_debris_leaves_removal"]
+    }
+  },
+  "priority": 0,
+  "provisional": true
+}

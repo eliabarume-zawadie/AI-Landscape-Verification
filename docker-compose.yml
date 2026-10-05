@@ -1,0 +1,35 @@
+# Production-like local stack. Untested locally (Docker unavailable on the dev machine).
+# Mocks stay on here because real NetSuite/AI credentials are not available; NODE_ENV is
+# therefore "development" (production refuses mocks).
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: alvip
+      POSTGRES_USER: alvip
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alvip"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://alvip:${POSTGRES_PASSWORD:-change-me-local-only}@db:5432/alvip
+      COOKIE_SECURE: "false"
+      MOCK_NETSUITE: "true"
+      MOCK_AI: "true"
+      MOCK_IMAGES: "true"
+      AUTOMATION_LEVEL: "1"
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

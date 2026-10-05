@@ -1,0 +1,12 @@
+{
+  "client": "DEMO_CLIENT_A",
+  "display_name": "Demo Client A (mock data)",
+  "required_services": ["mowing", "edging", "shrub_pruning"],
+  "before_after_required": true,
+  "equipment_alone_is_insufficient": true,
+  "always_human_review": false,
+  "image_requirements": { "min_usable_images": 2, "min_distinct_scenes": 1 },
+  "service_overrides": {},
+  "priority": 0,
+  "provisional": true
+}

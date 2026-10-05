@@ -1,0 +1,166 @@
+{
+  "version": "services-v1",
+  "services": [
+    {
+      "code": "landscape_maintenance",
+      "display_name": "Landscape Maintenance",
+      "description": "Broad maintenance of the property. Assessed through its observable components (PRD §63); the client profile decides which components are required.",
+      "requires_before_after": false,
+      "default_human_review": false,
+      "minimum_confidence_for_assistance": 0.85,
+      "components": ["mowing", "edging", "weed_removal", "trash_debris_leaves_removal", "shrub_pruning"],
+      "evidence_types": [
+        { "type": "plant_bed_maintained", "description": "Plant beds look tidy: defined, mulched or cleared, no overgrowth.", "polarity": "positive" },
+        { "type": "plant_bed_unmaintained", "description": "Plant beds look neglected: overgrowth, weeds, spilled debris.", "polarity": "negative" },
+        { "type": "overall_maintained_appearance", "description": "The scene looks generally well kept.", "polarity": "context" },
+        { "type": "equipment_present", "description": "Landscaping equipment or crew visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["overall_maintained_appearance", "equipment_present"],
+      "safety_notes": [
+        "An aesthetically pleasing landscape is not proof that any specific service occurred.",
+        "Assess each required component separately using visible evidence."
+      ]
+    },
+    {
+      "code": "landscape_fertilization",
+      "display_name": "Landscape Fertilization",
+      "description": "Application of fertilizer to lawn or beds. Very hard to verify visually; defaults to human review (PRD §61).",
+      "requires_before_after": false,
+      "default_human_review": true,
+      "minimum_confidence_for_assistance": 0.95,
+      "evidence_types": [
+        { "type": "fertilizer_granules_visible", "description": "Fertilizer granules or prills clearly visible on the soil or turf.", "polarity": "positive" },
+        { "type": "lawn_treatment_sign_posted", "description": "A lawn-treatment notification flag or sign is visible.", "polarity": "positive" },
+        { "type": "healthy_lawn_appearance", "description": "Grass looks green and healthy.", "polarity": "context" },
+        { "type": "equipment_present", "description": "Spreader, sprayer, or other equipment visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["healthy_lawn_appearance", "equipment_present"],
+      "safety_notes": [
+        "Healthy or green grass does NOT prove fertilization.",
+        "Equipment in the image does NOT prove fertilizer was applied."
+      ]
+    },
+    {
+      "code": "edging",
+      "display_name": "Edging",
+      "description": "Crisp boundaries between turf and hardscape or beds.",
+      "requires_before_after": true,
+      "default_human_review": false,
+      "minimum_confidence_for_assistance": 0.85,
+      "evidence_types": [
+        { "type": "defined_lawn_boundary", "description": "Clean, straight boundary between grass and pavement or bed.", "polarity": "positive" },
+        { "type": "fresh_edge_line", "description": "Freshly cut edge line or trench visible.", "polarity": "positive" },
+        { "type": "grass_overgrowing_hardscape", "description": "Grass spilling over curbs, walkways, or bed borders.", "polarity": "negative" },
+        { "type": "equipment_present", "description": "Edger or crew visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["equipment_present"],
+      "safety_notes": ["Equipment in the image does NOT prove edging was completed."]
+    },
+    {
+      "code": "mowing",
+      "display_name": "Mowing",
+      "description": "Evidence that grass/lawn areas were mowed.",
+      "requires_before_after": true,
+      "default_human_review": false,
+      "minimum_confidence_for_assistance": 0.85,
+      "evidence_types": [
+        { "type": "maintained_lawn", "description": "Lawn appears evenly short and recently cut.", "polarity": "positive" },
+        { "type": "fresh_mow_pattern", "description": "Visible mowing stripes or pattern.", "polarity": "positive" },
+        { "type": "uncut_section_visible", "description": "A section of lawn appears unmowed.", "polarity": "negative" },
+        { "type": "tall_overgrown_grass", "description": "Grass appears tall or overgrown.", "polarity": "negative" },
+        { "type": "clippings_on_hardscape", "description": "Grass clippings left on walkways or pavement.", "polarity": "context" },
+        { "type": "equipment_present", "description": "Mower or crew visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["equipment_present"],
+      "safety_notes": ["Equipment in the image does NOT prove mowing was completed."]
+    },
+    {
+      "code": "weed_removal",
+      "display_name": "Weed Removal",
+      "description": "Removal of weeds from beds, turf, or hardscape cracks.",
+      "requires_before_after": true,
+      "default_human_review": false,
+      "minimum_confidence_for_assistance": 0.9,
+      "evidence_types": [
+        { "type": "area_free_of_visible_weeds", "description": "The area in view shows no visible weeds.", "polarity": "positive" },
+        { "type": "pulled_weeds_collected", "description": "Pulled weeds collected in a pile, bag, or tarp.", "polarity": "positive" },
+        { "type": "weeds_reduced", "description": "Fewer weeds than expected, but some remain.", "polarity": "context" },
+        { "type": "weeds_visible", "description": "Weeds clearly visible in the serviced area.", "polarity": "negative" },
+        { "type": "equipment_present", "description": "Crew or tools visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["weeds_reduced", "equipment_present"],
+      "safety_notes": [
+        "'Weeds reduced' is not the same as 'weed removal completed' (PRD §62).",
+        "A maintained-looking area is not proof that weeds were removed."
+      ]
+    },
+    {
+      "code": "tree_trimming_pruning",
+      "display_name": "Tree Trimming/Pruning",
+      "description": "Trimming or pruning of trees.",
+      "requires_before_after": true,
+      "default_human_review": false,
+      "minimum_confidence_for_assistance": 0.85,
+      "evidence_types": [
+        { "type": "fresh_cuts_visible", "description": "Fresh pruning cuts visible on branches.", "polarity": "positive" },
+        { "type": "canopy_clearance_achieved", "description": "Canopy raised or thinned with clearance over walkways, roofs, or signs.", "polarity": "positive" },
+        { "type": "overgrown_branches_visible", "description": "Branches overhanging or obstructing where trimming was expected.", "polarity": "negative" },
+        { "type": "branch_debris_collected", "description": "Cut branches collected on site.", "polarity": "context" },
+        { "type": "equipment_present", "description": "Saws, lifts, or crew visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["branch_debris_collected", "equipment_present"],
+      "safety_notes": ["Equipment or cut branches alone do NOT prove the required trees were trimmed."]
+    },
+    {
+      "code": "trash_debris_leaves_removal",
+      "display_name": "Trash/Debris/Leaves Removal",
+      "description": "Removal of litter, debris, and leaves.",
+      "requires_before_after": true,
+      "default_human_review": false,
+      "minimum_confidence_for_assistance": 0.85,
+      "evidence_types": [
+        { "type": "area_clear_of_debris", "description": "The area in view is free of litter, debris, and leaf build-up.", "polarity": "positive" },
+        { "type": "debris_bagged_or_collected", "description": "Debris or leaves bagged or piled for removal.", "polarity": "context" },
+        { "type": "litter_visible", "description": "Trash or litter visible in the serviced area.", "polarity": "negative" },
+        { "type": "leaf_accumulation_visible", "description": "Significant leaf accumulation remaining.", "polarity": "negative" },
+        { "type": "equipment_present", "description": "Blowers or crew visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["debris_bagged_or_collected", "equipment_present"],
+      "safety_notes": ["Bagged debris shows collection began, not that the area was cleared."]
+    },
+    {
+      "code": "shrub_pruning",
+      "display_name": "Shrub Pruning",
+      "description": "Shaping and pruning of shrubs and hedges.",
+      "requires_before_after": true,
+      "default_human_review": false,
+      "minimum_confidence_for_assistance": 0.85,
+      "evidence_types": [
+        { "type": "shrubs_shaped_uniform", "description": "Shrubs or hedges have a freshly shaped, uniform profile.", "polarity": "positive" },
+        { "type": "fresh_cuts_visible", "description": "Fresh cut surfaces visible on shrubs.", "polarity": "positive" },
+        { "type": "shrubs_overgrown", "description": "Shrubs appear overgrown or unshaped.", "polarity": "negative" },
+        { "type": "clippings_present", "description": "Shrub clippings on the ground.", "polarity": "context" },
+        { "type": "equipment_present", "description": "Trimmers or crew visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["clippings_present", "equipment_present"],
+      "safety_notes": ["Clippings or equipment alone do NOT prove the required shrubs were pruned."]
+    },
+    {
+      "code": "dead_brown_grass",
+      "display_name": "Dead/Brown Grass",
+      "description": "Service addressing dead or brown grass. The exact business requirement is unconfirmed (unknown U7), so it defaults to human review.",
+      "requires_before_after": true,
+      "default_human_review": true,
+      "minimum_confidence_for_assistance": 0.95,
+      "evidence_types": [
+        { "type": "dead_grass_area_treated_or_replaced", "description": "Previously dead area visibly treated, re-seeded, or re-sodded.", "polarity": "positive" },
+        { "type": "dead_grass_area_unchanged", "description": "Dead/brown area appears unchanged.", "polarity": "negative" },
+        { "type": "dead_brown_grass_observed", "description": "Dead or brown grass is visible.", "polarity": "context" }
+      ],
+      "insufficient_alone": ["dead_brown_grass_observed"],
+      "safety_notes": [
+        "'Dead/brown grass observed' is a different question from 'dead/brown grass service addressed' (PRD §64)."
+      ]
+    }
+  ]
+}

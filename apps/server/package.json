@@ -1,0 +1,28 @@
+{
+  "name": "@alvip/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "user:create": "tsx src/cli/createUser.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@fastify/cookie": "^11.1.2",
+    "@node-rs/argon2": "^2.2.1",
+    "drizzle-orm": "^0.45.3",
+    "fastify": "^5.12.5",
+    "pg": "^8.23.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15"
+  }
+}

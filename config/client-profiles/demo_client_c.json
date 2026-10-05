@@ -1,0 +1,14 @@
+{
+  "client": "DEMO_CLIENT_C",
+  "display_name": "Demo Client C (mock data, strict)",
+  "required_services": ["mowing", "landscape_fertilization", "weed_removal"],
+  "before_after_required": true,
+  "equipment_alone_is_insufficient": true,
+  "always_human_review": true,
+  "image_requirements": { "min_usable_images": 4, "min_distinct_scenes": 2 },
+  "service_overrides": {
+    "weed_removal": { "minimum_confidence_for_assistance": 0.95 }
+  },
+  "priority": 1,
+  "provisional": true
+}

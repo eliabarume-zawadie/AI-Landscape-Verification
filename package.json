@@ -1,0 +1,28 @@
+{
+  "name": "alvip",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI Landscape Verification Intelligence Platform",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @alvip/server",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p apps/server --noEmit && tsc -p packages/shared --noEmit",
+    "db:generate": "npm run db:generate -w @alvip/server",
+    "db:migrate": "npm run db:migrate -w @alvip/server",
+    "db:seed": "npm run db:seed -w @alvip/server"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
