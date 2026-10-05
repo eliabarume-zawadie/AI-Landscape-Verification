@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { and, asc, eq } from "drizzle-orm";
-import sharp from "sharp";
 import { z } from "zod";
 import { recordAudit } from "../../audit/audit";
 import { imageAnalysis, images, locations, processingRuns } from "../../db/schema";
 import { requireUser } from "../../http/authPlugin";
+import { openImage } from "../../pipeline/imageDecode";
 import type { AppContext } from "../../http/context";
 
 const listParams = z.object({ id: z.string().uuid() });
@@ -15,6 +15,8 @@ const contentQuery = z.object({ variant: z.enum(["full", "thumb"]).default("full
 /** Formats browsers display natively; anything else is transcoded to JPEG for viewing. */
 const BROWSER_FORMATS: Record<string, string> = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
 const THUMB_WIDTH = 360;
+/** Same decompression-bomb guard as analysis (thresholds default). */
+const MAX_VIEW_PIXELS = 50_000_000;
 
 export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
   /** PRD §76: images for a location with per-run quality and duplicate analysis. */
@@ -115,14 +117,14 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
     let body: Buffer;
     let contentType: string;
     try {
-      if (q.data.variant === "thumb") {
-        body = await sharp(bytes).rotate().resize({ width: THUMB_WIDTH, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
-        contentType = "image/jpeg";
-      } else if (img.format && BROWSER_FORMATS[img.format]) {
+      if (q.data.variant === "full" && img.format && BROWSER_FORMATS[img.format]) {
         body = bytes;
         contentType = BROWSER_FORMATS[img.format]!;
       } else {
-        body = await sharp(bytes).rotate().jpeg({ quality: 90 }).toBuffer();
+        // Thumbnails, and formats browsers can't show (e.g. iPhone HEIC), are served as JPEG.
+        const opened = await openImage(bytes, { maxInputPixels: MAX_VIEW_PIXELS });
+        const pipeline = q.data.variant === "thumb" ? opened.image().resize({ width: THUMB_WIDTH, withoutEnlargement: true }) : opened.image();
+        body = await pipeline.jpeg({ quality: q.data.variant === "thumb" ? 80 : 90 }).toBuffer();
         contentType = "image/jpeg";
       }
     } catch {

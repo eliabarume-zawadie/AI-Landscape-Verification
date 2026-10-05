@@ -32,6 +32,14 @@
 
 `drizzle-kit` (dev-only) depends on an esbuild version with a moderate advisory affecting esbuild's dev server. It is not part of the runtime and is not exposed. Re-check on drizzle-kit upgrades.
 
+## HEIC decoding
+
+iPhone HEIC photos are decoded with `heic-decode` (ISC), which wraps `libheif-js` (**LGPL-3.0**, libheif + libde265 compiled to WebAssembly). It's used unmodified as a runtime dependency. Points for the business/legal to confirm before production:
+- LGPL-3.0 obligations for distributing the application (normally satisfied for unmodified, separately loaded libraries, but confirm with legal).
+- HEVC is a patent-encumbered codec; decoding in software may have licensing implications depending on jurisdiction and distribution model.
+
+The decoder runs on untrusted input inside WebAssembly. The pixel limit is checked from the HEIF header before decoding.
+
 ## HTTPS
 
 TLS terminates at the load balancer / platform. The app sets `trustProxy` in production so client IPs in audit logs are correct.

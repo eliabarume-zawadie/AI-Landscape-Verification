@@ -15,7 +15,8 @@
 | Location in `INTEGRATION_ERROR` right after ingest | Unknown client, unknown service code, or no services | See the location's `openErrors`; fix config (`config/`), then reprocess |
 | Standalone worker refuses to start | It needs PostgreSQL (`DATABASE_URL`) | With PGlite use `WORKER_MODE=embedded` (default) |
 | Image returns 410 | Purged under the retention policy | Expected; analysis and hashes remain. Re-fetch by reprocessing if the source still has it |
-| Many real photos flagged `CORRUPT` | Possibly HEIC (HEVC) from iPhones, which sharp's prebuilt binaries most likely cannot decode (untested) | Confirm source formats (plan A15); convert upstream or add a HEIC-capable decoder |
+| HEIC photos slow to process | HEVC HEIC is decoded in WebAssembly (~0.3 s per 1.4 MP image; a 12 MP iPhone photo takes longer), max 2 at a time | Expected; tune `IMAGE_FETCH_CONCURRENCY`/worker count. `image_analysis.quality_metrics.decoder` shows `libheif` for these images |
+| HEIC tests skipped | The real HEIC sample is not committed | `npx tsx apps/server/src/scripts/fetchHeicFixture.ts`, or drop a real crew HEIC at `fixtures/heic/sample.heic` |
 | Reset local DB | — | Stop the API, delete `.data/pglite` and `.data/images`, re-run `npm run db:seed` |
 
 "Why is today's queue not clearing?": once Phase 12 lands, the dashboard and the Exception Lane answer this. Until then, check the `system_errors` and `verification_jobs` tables.

@@ -268,7 +268,7 @@ interface VisionProvider {
 | A12 | A NetSuite work item with an unknown client, unknown service code, or no services is never partially verified: it goes to the Exception Lane. |
 | A13 | Reviewers can see all locations until reviewer assignment is defined (PRD §52 "view assigned locations"; assignment model unknown). |
 | A14 | Image bytes are purged only for locations that are `COMPLETED` or `SYNCED_TO_NETSUITE`; a location sitting in review longer than the retention window keeps its images until it finishes. |
-| A15 | Accepted image formats are JPEG, PNG, WebP, HEIF/AVIF. iPhone HEIC (HEVC-encoded) photos are **likely not** decodable with sharp's prebuilt binaries (AVIF is supported; HEVC is not bundled) and would be flagged `CORRUPT`. Untested with real files — confirm real photo formats (unknown U4). |
+| A15 | Crews likely submit iPhone **HEIC** photos (confirmed by business, 2026-10-05). Accepted formats: JPEG, PNG, WebP, HEIF (incl. AVIF and HEVC HEIC). sharp cannot decode HEVC HEIC (verified on a real file), so those are decoded with libheif (WebAssembly, `heic-decode`), max 2 concurrent decodes. Pending: test with real crew photos, and check HEVC patent/licensing position with legal (see SECURITY.md). |
 | A11 | A client profile can make a service's confidence threshold **stricter** but never looser than the service default. Any rule requiring human review (service default, client-wide, client per-service) wins. |
 
 ---

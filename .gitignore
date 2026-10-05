@@ -6,3 +6,6 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Third-party HEIC test sample (download with apps/server/src/scripts/fetchHeicFixture.ts)
+fixtures/heic/*.heic

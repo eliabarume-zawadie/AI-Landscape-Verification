@@ -17,7 +17,7 @@ Every stage writes structured results keyed by `processing_run_id`.
 | Step | How | Output |
 |---|---|---|
 | Fetch | `ImageProvider`, `IMAGE_FETCH_CONCURRENCY` in parallel; stored bytes reused | private storage object, `images.sha256` |
-| Decode + measure | sharp, single decode, ≤512 px greyscale copy | format, oriented size, mean luminance, Laplacian variance, dark/bright fractions |
+| Decode + measure | sharp, single decode, ≤512 px greyscale copy; HEVC HEIC (iPhone) decoded by libheif then handed to sharp | format, oriented size, mean luminance, Laplacian variance, dark/bright fractions |
 | Quality | `domain/quality.ts` against active thresholds | score (ranking only), usable, issues |
 | Duplicates | `domain/dedup.ts`: SHA-256 exact; near = dHash Hamming ≤ `near_duplicate_hamming_max` **and** 32×32 MAD ≤ `near_duplicate_mad_max` | cluster, representative, kind |
 

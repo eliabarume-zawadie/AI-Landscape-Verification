@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import type { ImageMetrics } from "../domain/quality";
+import { openImage, type HeicDecoder } from "./imageDecode";
 
 export interface ImageFingerprints {
   sha256: string;
@@ -21,24 +22,24 @@ const ANALYSIS_MAX_SIDE = 512;
  * Decode once and measure. Never throws for bad input: undecodable bytes become
  * `decodable: false` so the image is recorded as CORRUPT rather than failing the run.
  */
-export async function analyzeImageBytes(bytes: Buffer, opts: { maxInputPixels: number }): Promise<AnalyzedImage> {
+export async function analyzeImageBytes(
+  bytes: Buffer,
+  opts: { maxInputPixels: number; heicDecoder?: HeicDecoder },
+): Promise<AnalyzedImage> {
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const base = { present: true, bytes: bytes.length } as const;
   try {
-    // failOn "warning" rejects truncated/corrupt files instead of decoding garbage.
-    const input = () => sharp(bytes, { failOn: "warning", limitInputPixels: opts.maxInputPixels });
-    const meta = await input().metadata();
+    const opened = await openImage(bytes, opts);
 
-    // Respect EXIF orientation, then measure on a bounded greyscale copy.
-    // greyscale() alone keeps 3 sRGB channels; force a true single-channel image.
-    const { data, info } = await input()
-      .rotate()
+    // Measure on a bounded, true single-channel greyscale copy
+    // (greyscale() alone keeps 3 sRGB channels).
+    const { data, info } = await opened
+      .image()
       .greyscale()
       .toColourspace("b-w")
       .resize({ width: ANALYSIS_MAX_SIDE, height: ANALYSIS_MAX_SIDE, fit: "inside", withoutEnlargement: true })
       .raw()
       .toBuffer({ resolveWithObject: true });
-
     if (info.channels !== 1) throw new Error(`expected 1 greyscale channel, got ${info.channels}`);
 
     const { mean, darkFraction, brightFraction } = luminanceStats(data);
@@ -57,15 +58,14 @@ export async function analyzeImageBytes(bytes: Buffer, opts: { maxInputPixels: n
     const dhashRaw = await greyResize(9, 8);
     const fingerprint = new Uint8Array(await greyResize(32, 32));
 
-    // Report oriented dimensions.
-    const swap = (meta.orientation ?? 1) >= 5;
     return {
       metrics: {
         ...base,
         decodable: true,
-        format: meta.format,
-        width: swap ? meta.height : meta.width,
-        height: swap ? meta.width : meta.height,
+        format: opened.format,
+        decoder: opened.decoder,
+        width: opened.width,
+        height: opened.height,
         meanLuminance: round2(mean),
         laplacianVariance: round2(laplacianVariance),
         darkFraction: round2(darkFraction),

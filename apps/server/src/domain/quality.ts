@@ -7,6 +7,8 @@ export interface ImageMetrics {
   decodable: boolean;
   decodeError?: string;
   format?: string;
+  /** Which decoder read the pixels ("libheif" for HEVC HEIC photos). */
+  decoder?: "sharp" | "libheif";
   width?: number;
   height?: number;
   bytes: number;

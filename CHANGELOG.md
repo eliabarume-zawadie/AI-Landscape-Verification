@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.1] — HEIC support — 2026-10-05
+
+### Added
+- iPhone **HEIC (HEVC)** photos are decoded via libheif/WebAssembly (`heic-decode`) when sharp cannot decode them. Verified on a real HEIC file: sharp alone fails, the fallback decodes it, quality analysis marks it usable, and it is served to reviewers as JPEG. Pixel limit checked from the header before decoding; at most 2 concurrent HEVC decodes.
+- Shared `openImage()` used by analysis and image viewing; `quality_metrics.decoder` records which decoder was used.
+- Real-file HEIC tests run when `fixtures/heic/sample.heic` is present (not committed; `scripts/fetchHeicFixture.ts`).
+
+### Notes
+- New runtime dependency `libheif-js` is LGPL-3.0, and HEVC is patent-encumbered. Both are flagged for legal review in SECURITY.md.
+
 ## [0.3.0] — Phase 3: Image ingestion, quality, deduplication — 2026-10-05
 
 ### Added
