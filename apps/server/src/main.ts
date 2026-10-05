@@ -2,7 +2,7 @@ import { SYSTEM_ACTOR } from "./audit/audit";
 import { loadActiveConfig, syncConfigToDb } from "./config/configStore";
 import { ConfigError, loadDotEnvFile, loadEnv } from "./config/env";
 import { loadVerificationConfigFromDir } from "./config/verificationConfig";
-import { openDb } from "./db/client";
+import { DatabaseInUseError, openDb } from "./db/client";
 import { buildApp } from "./http/app";
 import { createRuntime, createWorker } from "./runtime";
 import { LoginThrottle } from "./services/auth";
@@ -51,11 +51,17 @@ async function main() {
     },
     "ALVIP API started",
   );
-  console.log(`\nALVIP is running: http://${env.HOST}:${env.PORT}\n`);
+  const shown = env.HOST === "0.0.0.0" || env.HOST === "::" ? "localhost" : env.HOST;
+  console.log(`\nALVIP is running: http://${shown}:${env.PORT}\n`);
 }
 
 main().catch((err) => {
-  if (err instanceof ConfigError) {
+  if (err instanceof DatabaseInUseError) {
+    console.error(
+      `\nALVIP cannot start: ${err.message}\n` +
+        "Is `npm run dev` already running in another terminal? Use that one, or stop it with Ctrl+C.\n",
+    );
+  } else if (err instanceof ConfigError) {
     // Configuration problems get one clear sentence, not a stack trace.
     console.error(`\nALVIP cannot start: ${err.message}\n`);
   } else if ((err as NodeJS.ErrnoException)?.code === "EADDRINUSE") {
@@ -64,7 +70,7 @@ main().catch((err) => {
     const dir = process.env.PGLITE_DATA_DIR ?? "the local database folder";
     console.error(
       `\nALVIP cannot start: the local database could not be opened (${dir}).\n` +
-        "Likely causes: another ALVIP process is using it (stop it), or a sync tool such as OneDrive changed its files.\n" +
+        "Its files may have been changed by a sync tool such as OneDrive, or damaged.\n" +
         "See docs/TROUBLESHOOTING.md → \"Local database cannot be opened\".\n",
     );
   } else {

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.3] — Fix: dev server unreachable or refusing to start after a restart — 2026-10-05
+
+### Fixed
+- **Browser could not connect to `http://localhost:3000`** although the server was running: it listened on IPv4 (`127.0.0.1`) only, while the browser resolved `localhost` to IPv6 (`::1`). `HOST` now defaults to `localhost`, which listens on both.
+- **"Database locked" after every unclean stop.** PGlite always writes its lock file with a placeholder PID, so it could not tell a crashed run from a live one; any force-kill (dev-watcher restart, closed terminal) blocked the next start. ALVIP now records the real owning process next to the data (`alvip-owner.json`): if that process is gone, the stale lock is removed automatically and normal crash recovery runs ("Recovered a stale database lock…"); if it is still running, startup stops with "in use by another ALVIP process (PID …)" instead of risking two writers.
+
+### Verified
+- Against the real local database: recovered a stale lock; served the UI at `localhost` and `127.0.0.1`; a second `npm run dev` was refused while the first stayed healthy; a force-killed server restarted cleanly. 392 tests passing (new tests for stale-lock recovery and live-owner refusal).
+
 ## [0.9.2] — Fix: local database kept inside OneDrive — 2026-10-05
 
 ### Fixed
