@@ -21,3 +21,5 @@ No accuracy target is assumed. Business stakeholders set thresholds after seeing
 ## Feedback loop
 
 Reviewer overrides → `feedback` table → candidate golden examples → evaluation → review → approval → deployment. Production behaviour never changes automatically from feedback (PRD §57).
+
+Since Phase 10, every decision with a reason writes feedback rows. Each row holds the AI's status and confidence for the service, the overall recommendation, the human decision, the reason, any photo the reviewer flagged, the run and the reviewer. Team leads browse them on the **Feedback** page and export them as CSV (`/api/feedback/export.csv`) to pick candidate golden examples. Nothing reads the table to change assessments. Rows marked `isOverride=false` are feedback given while agreeing with the AI.

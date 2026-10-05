@@ -16,6 +16,7 @@ Schema: [apps/server/src/db/schema.ts](../apps/server/src/db/schema.ts). Migrati
 |---|---|
 | Audit log is append-only | Trigger rejects UPDATE/DELETE/TRUNCATE on `audit_events` |
 | Human decisions are never overwritten | Trigger rejects UPDATE/DELETE on `human_reviews`, `feedback` |
+| Knowledge notes are never overwritten | Trigger `knowledge_notes_guard`: no deletes; the only update allowed is archiving an active note once (revising = new superseding note) |
 | Config versions are immutable | Trigger allows only `is_active` changes on `client_profiles`, `service_rule_versions`, `threshold_versions`; no deletes |
 | One active version | Partial unique indexes on `is_active` |
 | Idempotent ingest | Unique `locations.external_id` |

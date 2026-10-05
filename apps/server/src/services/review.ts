@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { AiRecommendation, OverrideReasonCode, ReviewDecision, Role, ServiceAssessmentStatus } from "@alvip/shared";
 import { recordAudit } from "../audit/audit";
 import type { Db } from "../db/client";
-import { auditEvents, humanReviews, locations, serviceAssessments } from "../db/schema";
+import { auditEvents, feedback, humanReviews, images, locations, serviceAssessments } from "../db/schema";
 import { hasRole, type AuthUser } from "./auth";
 import { LocationNotFoundError, transitionLocation } from "./locationTransitions";
 
@@ -25,6 +25,8 @@ export interface ReviewInput {
   reasonText?: string;
   /** Image IDs the reviewer looked at (client-reported; full views are also audited server-side). */
   evidenceViewed?: string[];
+  /** Photos the reviewer flagged as the ones the feedback is about (PRD §30 "relevant image"). */
+  relevantImageIds?: string[];
   openedAt?: Date;
   /** Set by the Fast Lane batch confirmation. */
   batch?: boolean;
@@ -60,16 +62,38 @@ export async function loadAiSnapshot(db: Db, locationId: string): Promise<AiSnap
  * evidence.
  */
 export function findConflicts(decision: ReviewDecision, ai: AiSnapshot, serviceDecisions: Record<string, "APPROVE" | "REJECT"> = {}): string[] {
-  const out: string[] = [];
+  return findConflictDetails(decision, ai, serviceDecisions).map((c) => c.message);
+}
+
+export interface Conflict {
+  /** null = the location-level recommendation. */
+  service: string | null;
+  message: string;
+}
+
+export function findConflictDetails(decision: ReviewDecision, ai: AiSnapshot, serviceDecisions: Record<string, "APPROVE" | "REJECT"> = {}): Conflict[] {
+  const out: Conflict[] = [];
   if (decision === "ESCALATE") return out;
-  if (decision === "APPROVE" && ai.recommendation === "RECOMMEND_REJECT") out.push("Approved against an AI recommendation to reject");
-  if (decision === "REJECT" && ai.recommendation === "RECOMMEND_APPROVE") out.push("Rejected against an AI recommendation to approve");
+  if (decision === "APPROVE" && ai.recommendation === "RECOMMEND_REJECT") out.push({ service: null, message: "Approved against an AI recommendation to reject" });
+  if (decision === "REJECT" && ai.recommendation === "RECOMMEND_APPROVE") out.push({ service: null, message: "Rejected against an AI recommendation to approve" });
   for (const [service, a] of Object.entries(ai.services)) {
     const human = serviceDecisions[service] ?? decision;
-    if (human === "APPROVE" && a.status !== "SUPPORTED") out.push(`Approved ${service} although the AI assessed it ${a.status}`);
-    if (human === "REJECT" && a.status === "SUPPORTED" && a.confidence === "HIGH") out.push(`Rejected ${service} although the AI found strong support`);
+    if (human === "APPROVE" && a.status !== "SUPPORTED") out.push({ service, message: `Approved ${service} although the AI assessed it ${a.status}` });
+    if (human === "REJECT" && a.status === "SUPPORTED" && a.confidence === "HIGH") out.push({ service, message: `Rejected ${service} although the AI found strong support` });
   }
   return out;
+}
+
+/**
+ * PRD §30 feedback rows: one per service the reviewer disagreed on (or one location-level
+ * row when the disagreement was only with the overall recommendation, or when feedback is
+ * given while agreeing), times each flagged photo.
+ */
+export function feedbackTargets(conflicts: Conflict[], relevantImageIds: string[]): { service: string | null; imageId: string | null }[] {
+  const services = [...new Set(conflicts.map((c) => c.service).filter((s): s is string => s !== null))];
+  const targets = services.length ? services : [null];
+  const imgs = relevantImageIds.length ? relevantImageIds : [null];
+  return targets.flatMap((service) => imgs.map((imageId) => ({ service, imageId })));
 }
 
 /**
@@ -96,12 +120,22 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
     }
   }
 
-  const conflicts = findConflicts(input.decision, ai, input.serviceDecisions);
+  const conflictDetails = findConflictDetails(input.decision, ai, input.serviceDecisions);
+  const conflicts = conflictDetails.map((c) => c.message);
   if (conflicts.length > 0 && !input.reasonCode) {
     throw new ReviewValidationError(`A reason is required: ${conflicts.join("; ")}`, "REASON_REQUIRED");
   }
   if (input.reasonCode === "OTHER" && !input.reasonText?.trim()) {
     throw new ReviewValidationError("Describe the reason when choosing OTHER", "REASON_REQUIRED");
+  }
+  const relevantImageIds = [...new Set(input.relevantImageIds ?? [])];
+  if (relevantImageIds.length > 0) {
+    if (!input.reasonCode) throw new ReviewValidationError("Give a reason for the flagged photos", "REASON_REQUIRED");
+    const own = await db
+      .select({ id: images.id })
+      .from(images)
+      .where(and(eq(images.locationId, input.locationId), inArray(images.id, relevantImageIds)));
+    if (own.length !== relevantImageIds.length) throw new ReviewValidationError("Flagged photos must belong to this location", "INVALID");
   }
 
   const to = input.decision === "APPROVE" ? "APPROVED" : input.decision === "REJECT" ? "REJECTED" : "ESCALATED";
@@ -153,6 +187,28 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
       })
       .returning();
 
+    // Feedback (PRD §30): captured whenever a reason is given. Stored for evaluation only.
+    let feedbackRows = 0;
+    if (input.reasonCode) {
+      const rows = feedbackTargets(conflictDetails, relevantImageIds).map(({ service, imageId }) => ({
+        reviewId: review!.id,
+        locationId: input.locationId,
+        runId: ai.runId,
+        reviewerId: user.id,
+        serviceCode: service,
+        imageId,
+        aiRecommendation: ai.recommendation,
+        aiStatus: service ? (ai.services[service]?.status ?? null) : null,
+        aiConfidence: service ? ((ai.services[service]?.confidence as "HIGH" | "MEDIUM" | "LOW" | undefined) ?? null) : null,
+        humanDecision: (service ? input.serviceDecisions?.[service] : undefined) ?? input.decision,
+        isOverride: conflicts.length > 0,
+        reasonCode: input.reasonCode!,
+        reasonText: input.reasonText?.trim() || null,
+      }));
+      await tx.insert(feedback).values(rows);
+      feedbackRows = rows.length;
+    }
+
     await recordAudit(tx, {
       eventType: "HUMAN_DECISION",
       actor,
@@ -165,6 +221,7 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
         aiRecommendation: ai.recommendation,
         reviewSeconds: input.openedAt ? Math.round((Date.now() - input.openedAt.getTime()) / 1000) : null,
         batch: input.batch ?? false,
+        feedbackRows,
       },
     });
     if (conflicts.length > 0) {
@@ -175,10 +232,10 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
         entityId: review!.id,
         locationId: input.locationId,
         ...(ai.runId ? { runId: ai.runId } : {}),
-        data: { conflicts, reasonCode: input.reasonCode, reasonText: input.reasonText ?? null },
+        data: { conflicts, reasonCode: input.reasonCode, reasonText: input.reasonText ?? null, relevantImageIds },
       });
     }
-    return { review: review!, conflicts, status: to };
+    return { review: review!, conflicts, status: to, feedbackRows };
   });
 }
 
@@ -236,6 +293,22 @@ export async function nextLocation(db: Db, role: Role, opts: { lane?: "HUMAN_REV
 }
 
 export async function reviewHistory(db: Db, locationId: string) {
-  return db.select().from(humanReviews).where(eq(humanReviews.locationId, locationId)).orderBy(desc(humanReviews.submittedAt));
+  const reviews = await db.select().from(humanReviews).where(eq(humanReviews.locationId, locationId)).orderBy(desc(humanReviews.submittedAt));
+  const fb = reviews.length
+    ? await db
+        .select({
+          reviewId: feedback.reviewId,
+          serviceCode: feedback.serviceCode,
+          imageId: feedback.imageId,
+          imageRef: images.externalRef,
+          aiStatus: feedback.aiStatus,
+          humanDecision: feedback.humanDecision,
+          reasonCode: feedback.reasonCode,
+        })
+        .from(feedback)
+        .leftJoin(images, eq(images.id, feedback.imageId))
+        .where(eq(feedback.locationId, locationId))
+    : [];
+  return reviews.map((r) => ({ ...r, feedback: fb.filter((f) => f.reviewId === r.id) }));
 }
 

@@ -29,9 +29,13 @@ export function DecisionBar(props: {
   busy: boolean;
   canEscalate: boolean;
   serverError: string | null;
+  /** Photos flagged in the viewer; feedback on them needs a reason (PRD §30). */
+  flagged?: { imageId: string; ref: string }[];
+  onClearFlags?(): void;
   onDecide(d: Decision, reason?: { code: string; text: string }): void;
   onSkip(): void;
 }) {
+  const flagged = props.flagged ?? [];
   const [pending, setPending] = useState<Decision | null>(null);
   const [code, setCode] = useState("");
   const [text, setText] = useState("");
@@ -39,7 +43,7 @@ export function DecisionBar(props: {
 
   const choose = (d: Decision) => {
     if (props.busy) return;
-    if (conflictsFor(d, props.ai).length > 0) {
+    if (conflictsFor(d, props.ai).length > 0 || flagged.length > 0) {
       setPending(d); // ask for a reason first
     } else {
       props.onDecide(d);
@@ -64,7 +68,7 @@ export function DecisionBar(props: {
   });
 
   if (pending) {
-    const verb = pending === "APPROVE" ? "Approve" : "Reject";
+    const verb = pending === "APPROVE" ? "Approve" : pending === "REJECT" ? "Reject" : "Escalate";
     return (
       <form
         className="decision"
@@ -74,8 +78,21 @@ export function DecisionBar(props: {
         }}
       >
         <div className="reason">
-          <strong>{verb} against the AI?</strong>
-          <span className="muted">{conflicts.join(" ")}</span>
+          <strong>{conflicts.length ? `${verb} against the AI?` : `${verb}, with feedback on the AI`}</strong>
+          {conflicts.length > 0 && <span className="muted">{conflicts.join(" ")}</span>}
+          {flagged.length > 0 && (
+            <span className="muted">
+              About {flagged.length === 1 ? "photo" : "photos"} <span className="mono">{flagged.map((f) => f.ref.replace(/^.*-(IMG\d+)$/, "$1")).join(", ")}</span>
+              {props.onClearFlags && (
+                <>
+                  {" "}
+                  <button type="button" className="linkish" onClick={props.onClearFlags}>
+                    clear
+                  </button>
+                </>
+              )}
+            </span>
+          )}
           <select aria-label="Reason" value={code} onChange={(e) => setCode(e.target.value)} required autoFocus>
             <option value="">Choose a reason…</option>
             {Object.entries(REASON_LABEL).map(([k, v]) => (
@@ -96,7 +113,7 @@ export function DecisionBar(props: {
         <button type="button" className="btn quiet" onClick={() => setPending(null)}>
           Back
         </button>
-        <button type="submit" className={`btn ${pending === "APPROVE" ? "approve" : "reject"}`} disabled={!code || props.busy}>
+        <button type="submit" className={`btn ${pending === "APPROVE" ? "approve" : pending === "REJECT" ? "reject" : "primary"}`} disabled={!code || props.busy}>
           {verb} with reason
         </button>
       </form>
@@ -118,6 +135,11 @@ export function DecisionBar(props: {
       )}
       {props.serverError && <span className="error">{props.serverError}</span>}
       <span className="spacer" />
+      {flagged.length > 0 && (
+        <span className="pill" title="Flagged photos are attached to your decision as feedback on the AI">
+          {flagged.length} flagged
+        </span>
+      )}
       <button className="btn quiet" onClick={props.onSkip} disabled={props.busy}>
         Skip to next <kbd>N</kbd>
       </button>

@@ -10,6 +10,7 @@ import {
   locationServices,
   processingRuns,
   systemErrors,
+  users,
   verificationJobs,
 } from "../../db/schema";
 import { InvalidTransitionError } from "../../domain/locationState";
@@ -173,10 +174,12 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
           eventType: auditEvents.eventType,
           actorType: auditEvents.actorType,
           actorId: auditEvents.actorId,
+          actorName: users.displayName,
           runId: auditEvents.runId,
           data: auditEvents.data,
         })
         .from(auditEvents)
+        .leftJoin(users, sql`${users.id}::text = ${auditEvents.actorId}`)
         .where(eq(auditEvents.locationId, id))
         .orderBy(asc(auditEvents.id)),
       ctx.db

@@ -72,6 +72,22 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 | GET | `/api/locations/:id/reviews` | REVIEWER | decision history with reviewer names |
 | POST | `/api/review/fast-lane/confirm` | REVIEWER | `{ locationIds[], openedAt? }`; automation level 3 only (409 otherwise); 422 `NOT_FAST_LANE` if any location is not a Fast Lane approve recommendation |
 
+### Phase 10
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| POST | `/api/locations/:id/review` | REVIEWER | adds `relevantImageIds?` (≤ 10 photos of this location, needs `reasonCode`). Whenever a reason is given, feedback rows are written (one per disagreeing service, or one location-level row, × each flagged photo). Response adds `feedbackRows` |
+| GET | `/api/locations/:id/reviews` | REVIEWER | each review now includes its `feedback` rows |
+| GET | `/api/locations/:id` | REVIEWER | audit entries now include `actorName` |
+| GET | `/api/feedback` | TEAM_LEAD | `?from&to&reason&service&reviewer&overridesOnly&limit&offset` → `{ rows, summary: { total, byReason, byService } }` |
+| GET | `/api/feedback/export.csv` | TEAM_LEAD | same filters, up to 50,000 rows; audited as `FEEDBACK_EXPORTED`; cells that a spreadsheet would run as formulas are prefixed with `'` |
+| GET | `/api/knowledge` | REVIEWER | `?q&clientId&serviceCode&kind&includeArchived` → `{ notes }` (every word must match title or text) |
+| GET | `/api/knowledge/scopes` | REVIEWER | clients and active services for filters/forms |
+| GET | `/api/locations/:id/knowledge` | REVIEWER | active notes for the location's client (or all) and its services (or all), most specific first, max 10 |
+| POST | `/api/knowledge` | TEAM_LEAD | `{ kind, title, body, clientId?, serviceCode?, source? }` → 201 `{ note }` |
+| POST | `/api/knowledge/:id/revise` | TEAM_LEAD | same body; archives the old note and creates a superseding one; 409 if already archived |
+| POST | `/api/knowledge/:id/archive` | TEAM_LEAD | `{ reason }`; 409 if already archived |
+
 Non-API GETs return the reviewer UI (`index.html`) when `WEB_DIST_DIR` exists.
 
 ## Planned (PRD §76)

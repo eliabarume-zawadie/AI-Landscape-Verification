@@ -683,3 +683,131 @@ table.list tr.row:hover td {
     transition: border-color 120ms ease, background 120ms ease;
   }
 }
+
+/* ---------- Phase 10: feedback flags, team knowledge, feedback report ---------- */
+.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--survey);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.linkish[aria-pressed="true"] {
+  font-weight: 600;
+}
+.btn.flagged {
+  background: var(--ochre-wash);
+  border-color: var(--ochre);
+  box-shadow: inset 0 0 0 1px var(--ochre);
+  color: var(--ink);
+}
+.pill.flag {
+  border-color: var(--ochre);
+  color: var(--ochre);
+}
+label.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.team-notes {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--rule);
+}
+.team-notes details {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  padding: 8px 10px;
+}
+.team-notes summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.team-notes details p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+.note-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+}
+.note-form h2 {
+  margin: 0;
+}
+.note-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.notes {
+  display: grid;
+  gap: 10px;
+}
+.note {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--survey);
+  border-radius: var(--r);
+  padding: 12px 14px;
+}
+.note.archived {
+  border-left-color: var(--rule);
+  opacity: 0.75;
+}
+.note-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.note-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.note-head .spacer {
+  flex: 1;
+}
+.note-body {
+  margin: 8px 0 4px;
+  white-space: pre-wrap;
+}
+.note-meta {
+  margin: 0;
+  font-size: 12px;
+}
+.fb-summary {
+  display: flex;
+  gap: 24px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.fb-summary b {
+  font-family: var(--display);
+  font-size: 28px;
+}
+.fb-summary ul {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fb-rows {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}

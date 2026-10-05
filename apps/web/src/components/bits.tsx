@@ -73,12 +73,28 @@ export interface ViewerItem {
 }
 
 /** Full-size image viewer. ←/→ to move, Esc to close. Full views are audited server-side. */
-export function ImageViewer({ locationId, items, index, onClose }: { locationId: string; items: ViewerItem[]; index: number; onClose(): void }) {
+export function ImageViewer({
+  locationId,
+  items,
+  index,
+  onClose,
+  flagged,
+  onToggleFlag,
+}: {
+  locationId: string;
+  items: ViewerItem[];
+  index: number;
+  onClose(): void;
+  /** Photo flagging for decision feedback (PRD §30); omit to hide. */
+  flagged?: ReadonlySet<string>;
+  onToggleFlag?(imageId: string): void;
+}) {
   const [i, setI] = useState(index);
   const item = items[i];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      else if (e.key.toLowerCase() === "f" && onToggleFlag && items[i]) onToggleFlag(items[i]!.imageId);
       else if (e.key === "ArrowRight") setI((x) => Math.min(items.length - 1, x + 1));
       else if (e.key === "ArrowLeft") setI((x) => Math.max(0, x - 1));
       else return;
@@ -87,8 +103,9 @@ export function ImageViewer({ locationId, items, index, onClose }: { locationId:
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [items.length, onClose]);
+  }, [items, i, onClose, onToggleFlag]);
   if (!item) return null;
+  const isFlagged = flagged?.has(item.imageId) ?? false;
   return (
     <div className="viewer" role="dialog" aria-modal="true" aria-label={`Photo ${item.ref}`} onClick={onClose}>
       <img src={imageUrl(locationId, item.imageId, "full")} alt={item.ref} onClick={(e) => e.stopPropagation()} />
@@ -99,6 +116,16 @@ export function ImageViewer({ locationId, items, index, onClose }: { locationId:
           {i + 1} / {items.length}
         </span>
         <span style={{ flex: 1 }} />
+        {onToggleFlag && (
+          <button
+            className={`btn ${isFlagged ? "flagged" : ""}`}
+            aria-pressed={isFlagged}
+            title="Mark this photo as the one your feedback on the AI is about"
+            onClick={() => onToggleFlag(item.imageId)}
+          >
+            {isFlagged ? "Flagged for feedback" : "Flag for feedback"} <kbd>F</kbd>
+          </button>
+        )}
         <button className="btn" onClick={() => setI((x) => Math.max(0, x - 1))} disabled={i === 0}>
           ← Previous
         </button>

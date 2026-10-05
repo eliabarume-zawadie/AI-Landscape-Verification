@@ -7,8 +7,10 @@ import "./styles/app.css";
 import { StrictMode, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from "react-router-dom";
-import { AuthProvider, errorText, useAuth } from "./auth";
+import { AuthProvider, errorText, isLead, useAuth } from "./auth";
 import { FastLanePage } from "./pages/FastLane";
+import { FeedbackPage } from "./pages/Feedback";
+import { KnowledgePage } from "./pages/Knowledge";
 import { LocationDetailPage } from "./pages/LocationDetail";
 import { QueuePage } from "./pages/Queue";
 import { ReviewPage } from "./pages/Review";
@@ -70,6 +72,8 @@ function Shell() {
             Queue
           </NavLink>
           <NavLink to="/fast-lane">Fast lane</NavLink>
+          <NavLink to="/knowledge">Team knowledge</NavLink>
+          {isLead(user) && <NavLink to="/feedback">Feedback</NavLink>}
         </nav>
         <div className="who">
           <span className="muted">
@@ -96,6 +100,8 @@ function App() {
         <Route path="review/:id" element={<ReviewPage />} />
         <Route path="locations/:id" element={<LocationDetailPage />} />
         <Route path="fast-lane" element={<FastLanePage />} />
+        <Route path="knowledge" element={<KnowledgePage />} />
+        <Route path="feedback" element={isLead(user) ? <FeedbackPage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

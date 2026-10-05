@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { api, ApiError, imageUrl, type EvidenceResponse, type ImageItem, type LocationDetail, type PairView, type ServiceView } from "../api";
+import { api, ApiError, imageUrl, type EvidenceResponse, type ImageItem, type KnowledgeNote, type LocationDetail, type PairView, type ServiceView } from "../api";
 import { isLead, useAuth } from "../auth";
 import { ImageViewer, RiskTag, StatusTag, Toast, WipeCompare, type ViewerItem } from "../components/bits";
 import { DecisionBar, type Decision } from "../components/DecisionBar";
-import { age, engineReason, LOCATION_STATUS_LABEL, RECOMMENDATION_LABEL, ROLE_LABEL, rolesCaption, STATUS_LABEL } from "../labels";
+import { age, engineReason, KIND_LABEL, LOCATION_STATUS_LABEL, RECOMMENDATION_LABEL, ROLE_LABEL, rolesCaption, STATUS_LABEL } from "../labels";
+
+const MAX_FLAGS = 10;
 
 type Tab = "bundle" | "pairs" | "all";
 
@@ -24,6 +26,17 @@ export function ReviewPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [flagged, setFlagged] = useState<ReadonlySet<string>>(new Set());
+  const [notes, setNotes] = useState<KnowledgeNote[]>([]);
+
+  const toggleFlag = useCallback((imageId: string) => {
+    setFlagged((prev) => {
+      const next = new Set(prev);
+      if (next.has(imageId)) next.delete(imageId);
+      else if (next.size < MAX_FLAGS) next.add(imageId);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -31,6 +44,12 @@ export function ReviewPage() {
     setEv(null);
     setError(null);
     setTab("bundle");
+    setFlagged(new Set());
+    setNotes([]);
+    // Guidance only; the review works without it.
+    api<{ notes: KnowledgeNote[] }>(`/api/locations/${id}/knowledge`)
+      .then((r) => live && setNotes(r.notes))
+      .catch(() => undefined);
     Promise.all([
       api<LocationDetail>(`/api/locations/${id}`),
       api<EvidenceResponse>(`/api/locations/${id}/evidence`),
@@ -68,6 +87,7 @@ export function ReviewPage() {
             decision,
             openedAt,
             ...(reason ? { reasonCode: reason.code, ...(reason.text.trim() ? { reasonText: reason.text.trim() } : {}) } : {}),
+            ...(reason && flagged.size ? { relevantImageIds: [...flagged] } : {}),
           },
         });
         setToast(decision === "APPROVE" ? "Approved" : decision === "REJECT" ? "Rejected" : "Escalated to a team lead");
@@ -79,7 +99,7 @@ export function ReviewPage() {
         setBusy(false);
       }
     },
-    [id, openedAt, goNext],
+    [id, openedAt, goNext, flagged],
   );
 
   const openViewer = (items: ViewerItem[], imageId: string) => setViewer({ items, index: Math.max(0, items.findIndex((x) => x.imageId === imageId)) });
@@ -104,6 +124,7 @@ export function ReviewPage() {
   const allItems: ViewerItem[] = images.filter((i) => i.contentAvailable).map((i) => ({ imageId: i.id, ref: i.externalRef }));
   const confirmedPairs = (ev.pairs ?? []).filter((p) => p.status === "CONFIRMED");
   const ai = { recommendation: ev.recommendation?.value ?? null, services: ev.services.map((s) => ({ service: s.service, status: s.status, confidence: s.confidence })) };
+  const flaggedList = [...flagged].map((imageId) => ({ imageId, ref: images.find((i) => i.id === imageId)?.externalRef ?? imageId }));
 
   return (
     <div className="review">
@@ -160,6 +181,7 @@ export function ReviewPage() {
               <ServiceLedger key={s.service} s={s} onOpen={(imageId) => openViewer(bundleItems.length ? bundleItems : allItems, imageId)} />
             ))}
           </section>
+          {notes.length > 0 && <TeamNotes notes={notes} />}
           {ev.thresholdsProvisional && <p className="muted" style={{ fontSize: 12, margin: 0 }}>Thresholds are provisional until validated on real data.</p>}
         </aside>
 
@@ -187,6 +209,7 @@ export function ReviewPage() {
                       <span className="cap">
                         <span className="mono">{e.ref}</span>
                         <span>{rolesCaption(e.services)}</span>
+                        {flagged.has(e.imageId) && <span className="pill flag">flagged</span>}
                       </span>
                     </button>
                   );
@@ -219,7 +242,8 @@ export function ReviewPage() {
                     <span>
                       {i.analysis?.stage && i.analysis.stage !== "UNKNOWN" && <span className="pill">{i.analysis.stage.toLowerCase()}</span>}{" "}
                       {i.inBundle && <span className="pill">evidence</span>}{" "}
-                      {i.analysis?.duplicateKind && <span className="pill">duplicate</span>}
+                      {i.analysis?.duplicateKind && <span className="pill">duplicate</span>}{" "}
+                      {flagged.has(i.id) && <span className="pill flag">flagged</span>}
                     </span>
                     {i.analysis && !i.analysis.usable && <span className="unusable">Not usable: {i.analysis.issues.join(", ").toLowerCase().replaceAll("_", " ")}</span>}
                     {i.downloadError && <span className="unusable">Missing from source</span>}
@@ -232,7 +256,16 @@ export function ReviewPage() {
       </div>
 
       {decidable ? (
-        <DecisionBar ai={ai} busy={busy} canEscalate={loc.status === "HUMAN_REVIEW"} serverError={error} onDecide={decide} onSkip={goNext} />
+        <DecisionBar
+          ai={ai}
+          busy={busy}
+          canEscalate={loc.status === "HUMAN_REVIEW"}
+          serverError={error}
+          flagged={flaggedList}
+          onClearFlags={() => setFlagged(new Set())}
+          onDecide={decide}
+          onSkip={goNext}
+        />
       ) : (
         <div className="decision">
           <span>
@@ -246,9 +279,43 @@ export function ReviewPage() {
         </div>
       )}
 
-      {viewer && <ImageViewer locationId={loc.id} items={viewer.items} index={viewer.index} onClose={() => setViewer(null)} />}
+      {viewer && (
+        <ImageViewer
+          locationId={loc.id}
+          items={viewer.items}
+          index={viewer.index}
+          onClose={() => setViewer(null)}
+          {...(decidable ? { flagged, onToggleFlag: toggleFlag } : {})}
+        />
+      )}
       <Toast text={toast} />
     </div>
+  );
+}
+
+/** PRD §31: reviewer guidance for this client and these services. Never a rule. */
+function TeamNotes({ notes }: { notes: KnowledgeNote[] }) {
+  return (
+    <section className="team-notes" aria-label="Notes from the team">
+      <h2>Notes from the team</h2>
+      <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+        Guidance from past reviews. The client’s current rules decide; these notes don’t change them.
+      </p>
+      {notes.map((n) => (
+        <details key={n.id}>
+          <summary>
+            <span className="pill">{KIND_LABEL[n.kind] ?? n.kind}</span> {n.title}
+          </summary>
+          <p>{n.body}</p>
+          <p className="muted" style={{ fontSize: 12 }}>
+            {[n.clientName ?? "All clients", n.serviceName ?? "all services", n.source].filter(Boolean).join(" · ")}
+          </p>
+        </details>
+      ))}
+      <Link to="/knowledge" className="muted" style={{ fontSize: 13 }}>
+        Search all notes
+      </Link>
+    </section>
   );
 }
 

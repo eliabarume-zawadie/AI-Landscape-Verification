@@ -11,6 +11,8 @@ import { evidenceRoutes } from "../modules/evidence/routes";
 import { imageRoutes } from "../modules/images/routes";
 import { locationRoutes } from "../modules/locations/routes";
 import { reviewRoutes } from "../modules/reviews/routes";
+import { knowledgeRoutes } from "../modules/knowledge/routes";
+import { feedbackRoutes } from "../modules/feedback/routes";
 import { registerAuth } from "./authPlugin";
 import type { AppContext } from "./context";
 
@@ -73,6 +75,8 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await imageRoutes(app, ctx);
   await evidenceRoutes(app, ctx);
   await reviewRoutes(app, ctx);
+  await knowledgeRoutes(app, ctx);
+  await feedbackRoutes(app, ctx);
 
   // Reviewer UI (single deployable): static assets + SPA fallback for client-side routes.
   if (existsSync(path.join(ctx.env.WEB_DIST_DIR, "index.html"))) {

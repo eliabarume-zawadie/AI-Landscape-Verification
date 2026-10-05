@@ -20,6 +20,7 @@ import {
   AUDIT_EVENT_TYPES,
   CONFIDENCE_LEVELS,
   ERROR_CATEGORIES,
+  KNOWLEDGE_NOTE_KINDS,
   LANES,
   LOCATION_STATUSES,
   OVERRIDE_REASON_CODES,
@@ -46,6 +47,7 @@ export const jobStatusEnum = pgEnum("job_status", ["PENDING", "RUNNING", "SUCCEE
 export const outboxStatusEnum = pgEnum("outbox_status", ["PENDING", "IN_FLIGHT", "SUCCEEDED", "FAILED", "DEAD"]);
 export const evidenceRoleEnum = pgEnum("evidence_role", ["SUPPORTING", "CONTRADICTING", "CONTEXT"]);
 export const actorTypeEnum = pgEnum("actor_type", ["USER", "SYSTEM", "WORKER"]);
+export const knowledgeKindEnum = pgEnum("knowledge_kind", KNOWLEDGE_NOTE_KINDS);
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -519,20 +521,36 @@ export const humanReviews = pgTable(
   (t) => [index("human_reviews_location_idx").on(t.locationId)],
 );
 
+/**
+ * PRD §30: one immutable row per service the reviewer disagreed on (serviceCode null = the
+ * location-level recommendation), × each photo the reviewer flagged (imageId null = none).
+ * Evaluation/training input only — nothing reads it to change production behaviour.
+ */
 export const feedback = pgTable(
   "feedback",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     reviewId: uuid("review_id").notNull().references(() => humanReviews.id),
+    locationId: uuid("location_id").notNull().references(() => locations.id),
+    runId: uuid("run_id").references(() => processingRuns.id),
+    reviewerId: uuid("reviewer_id").notNull().references(() => users.id),
     serviceCode: text("service_code").references(() => services.code),
     imageId: uuid("image_id").references(() => images.id),
+    aiRecommendation: aiRecommendationEnum("ai_recommendation"),
     aiStatus: serviceStatusEnum("ai_status"),
+    aiConfidence: confidenceEnum("ai_confidence"),
     humanDecision: reviewDecisionEnum("human_decision").notNull(),
+    /** True when the human went against the AI; false = feedback given while agreeing. */
+    isOverride: boolean("is_override").notNull(),
     reasonCode: overrideReasonEnum("reason_code").notNull(),
     reasonText: text("reason_text"),
     createdAt: createdAt(),
   },
-  (t) => [index("feedback_review_idx").on(t.reviewId)],
+  (t) => [
+    index("feedback_review_idx").on(t.reviewId),
+    index("feedback_created_idx").on(t.createdAt),
+    index("feedback_reason_idx").on(t.reasonCode, t.createdAt),
+  ],
 );
 
 // ---------------------------------------------------------------- NetSuite outbox
@@ -601,18 +619,27 @@ export const systemErrors = pgTable(
 );
 
 // ---------------------------------------------------------------- knowledge base (Phase 10)
+/**
+ * PRD §31 reviewer guidance. Content is immutable (DB trigger): revising creates a new note
+ * that supersedes the old one, which is archived. Scope: clientId/serviceCode null = all.
+ */
 export const knowledgeNotes = pgTable(
   "knowledge_notes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     clientId: uuid("client_id").references(() => clients.id),
     serviceCode: text("service_code").references(() => services.code),
-    kind: text("kind").notNull(), // REVIEWER_NOTE | CLIENT_INSTRUCTION | EDGE_CASE | WEEKLY_FEEDBACK
+    kind: knowledgeKindEnum("kind").notNull(),
+    title: text("title").notNull(),
     body: text("body").notNull(),
+    /** Where the note came from, e.g. "Weekly feedback 2026-09-28" or an import file. */
     source: text("source"),
     authorId: uuid("author_id").references(() => users.id),
+    supersedesId: uuid("supersedes_id"),
     createdAt: createdAt(),
     archivedAt: ts("archived_at"),
+    archivedBy: uuid("archived_by").references(() => users.id),
+    archiveReason: text("archive_reason"),
   },
-  (t) => [index("knowledge_notes_scope_idx").on(t.clientId, t.serviceCode)],
+  (t) => [index("knowledge_notes_scope_idx").on(t.clientId, t.serviceCode), index("knowledge_notes_active_idx").on(t.archivedAt, t.createdAt)],
 );

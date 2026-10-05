@@ -100,3 +100,48 @@ export function rolesCaption(services: { service: string; role: string }[]): str
   for (const s of services) by.set(s.service, [...(by.get(s.service) ?? []), ROLE_LABEL[s.role] ?? s.role.toLowerCase()]);
   return [...by.entries()].map(([svc, roles]) => `${svc.replaceAll("_", " ")} · ${roles.join(", ")}`).join("  ·  ");
 }
+
+export const KIND_LABEL: Record<string, string> = {
+  REVIEWER_NOTE: "Reviewer note",
+  SERVICE_DEFINITION: "Service definition",
+  CLIENT_INSTRUCTION: "Client instruction",
+  EDGE_CASE: "Edge case",
+  WEEKLY_FEEDBACK: "Weekly feedback",
+  HISTORICAL_EXAMPLE: "Past example",
+};
+
+export const DECISION_LABEL: Record<string, string> = { APPROVE: "Approved", REJECT: "Rejected", ESCALATE: "Escalated" };
+
+/** One plain line per history event; null when the event type alone says enough. */
+export function eventDetail(eventType: string, data: Record<string, unknown>): string | null {
+  const d = data as Record<string, string | number | boolean | string[] | null | undefined>;
+  switch (eventType) {
+    case "LOCATION_STATUS_CHANGED":
+      return `${LOCATION_STATUS_LABEL[String(d.from)] ?? d.from} → ${LOCATION_STATUS_LABEL[String(d.to)] ?? d.to}`;
+    case "HUMAN_DECISION":
+      return [
+        DECISION_LABEL[String(d.decision)] ?? String(d.decision),
+        d.aiRecommendation ? `AI: ${(RECOMMENDATION_LABEL[String(d.aiRecommendation)] ?? String(d.aiRecommendation)).replace(/^AI /, "")}` : null,
+        typeof d.reviewSeconds === "number" ? `${d.reviewSeconds}s on the location` : null,
+        d.batch ? "batch confirmation" : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    case "HUMAN_OVERRIDE":
+      return `${REASON_LABEL[String(d.reasonCode)] ?? d.reasonCode}${d.reasonText ? ` — “${d.reasonText}”` : ""}`;
+    case "REPROCESS_REQUESTED":
+      return d.reason ? humanize(String(d.reason)) : null;
+    case "RISK_CALCULATED":
+      return d.level ? `${humanize(String(d.level))} risk` : null;
+    default:
+      return null;
+  }
+}
+
+export const EVENT_LABEL: Record<string, string> = {
+  HUMAN_DECISION: "Decision",
+  HUMAN_OVERRIDE: "Went against the AI",
+  REVIEW_OPENED: "Opened for review",
+  EVIDENCE_VIEWED: "Viewed a photo full size",
+  LOCATION_STATUS_CHANGED: "Status changed",
+};

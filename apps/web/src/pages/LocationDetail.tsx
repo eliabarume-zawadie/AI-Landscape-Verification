@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api, ApiError, type EvidenceResponse, type LocationDetail } from "../api";
 import { isLead, useAuth } from "../auth";
 import { RiskTag, StatusTag } from "../components/bits";
-import { humanize, LOCATION_STATUS_LABEL, REASON_LABEL, RECOMMENDATION_LABEL } from "../labels";
+import { DECISION_LABEL, EVENT_LABEL, eventDetail, humanize, LOCATION_STATUS_LABEL, REASON_LABEL, RECOMMENDATION_LABEL, STATUS_LABEL } from "../labels";
 
 interface ReviewRow {
   id: string;
@@ -14,6 +14,7 @@ interface ReviewRow {
   reasonCode: string | null;
   reasonText: string | null;
   aiRecommendation: string | null;
+  feedback: { serviceCode: string | null; imageRef: string | null; aiStatus: string | null; humanDecision: string; reasonCode: string }[];
 }
 
 const REPROCESS = [
@@ -151,10 +152,23 @@ export function LocationDetailPage() {
                   <td>{new Date(r.submittedAt).toLocaleString()}</td>
                   <td>{r.reviewerName}</td>
                   <td>
-                    <strong>{humanize(r.decision)}</strong>
+                    <strong>{DECISION_LABEL[r.decision] ?? humanize(r.decision)}</strong>
                     {r.isOverride && <span className="pill" style={{ marginLeft: 8 }}>against AI</span>}
                   </td>
-                  <td>{r.reasonCode ? `${REASON_LABEL[r.reasonCode] ?? r.reasonCode}${r.reasonText ? ` — ${r.reasonText}` : ""}` : ""}</td>
+                  <td>
+                    {r.reasonCode ? `${REASON_LABEL[r.reasonCode] ?? r.reasonCode}${r.reasonText ? ` — ${r.reasonText}` : ""}` : ""}
+                    {r.feedback.length > 0 && (
+                      <ul className="fb-rows">
+                        {[...new Map(r.feedback.map((f) => [`${f.serviceCode}|${f.imageRef}`, f])).values()].map((f) => (
+                          <li key={`${f.serviceCode}|${f.imageRef}`} className="muted">
+                            {f.serviceCode ? humanize(f.serviceCode) : "Whole location"}
+                            {f.aiStatus ? ` (AI: ${(STATUS_LABEL[f.aiStatus] ?? f.aiStatus).toLowerCase()})` : ""}
+                            {f.imageRef ? ` · photo ${f.imageRef.replace(/^.*-(IMG\d+)$/, "$1")}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -182,15 +196,18 @@ export function LocationDetailPage() {
 
       <section style={{ display: "grid", gap: 8 }}>
         <h2>History</h2>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+          Every step, newest first. This record can’t be edited.
+        </p>
         <table className="list">
           <tbody>
             {[...d.audit].reverse().map((a) => (
               <tr key={a.id}>
                 <td style={{ whiteSpace: "nowrap" }}>{new Date(a.occurredAt).toLocaleString()}</td>
-                <td>{humanize(a.eventType)}</td>
-                <td className="muted">{a.actorType.toLowerCase()}</td>
+                <td>{EVENT_LABEL[a.eventType] ?? humanize(a.eventType)}</td>
+                <td className="muted">{a.actorName ?? (a.actorType === "USER" ? "a user" : "system")}</td>
                 <td className="muted" style={{ fontSize: 13 }}>
-                  {a.eventType === "LOCATION_STATUS_CHANGED" ? `${a.data.from} → ${a.data.to}` : ""}
+                  {eventDetail(a.eventType, a.data) ?? ""}
                 </td>
               </tr>
             ))}

@@ -1,0 +1,24 @@
+[
+  {
+    "kind": "SERVICE_DEFINITION",
+    "title": "Edging",
+    "body": "A visible clean line where turf meets hard surfaces (drives, walks, curbs). A trimmer in the photo is not proof of edging.",
+    "service": "edging",
+    "source": "Example only — replace with your operations handbook"
+  },
+  {
+    "kind": "EDGE_CASE",
+    "title": "Wet grass after rain",
+    "body": "Clumped clippings on a freshly mown lawn are normal after rain. They are not a sign that mowing was incomplete.",
+    "service": "mowing",
+    "source": "Example only"
+  },
+  {
+    "kind": "CLIENT_INSTRUCTION",
+    "title": "Demo Client A: drive edges",
+    "body": "Demo Client A expects the driveway edge in at least one after photo. If it is missing, escalate rather than reject.",
+    "client": "DEMO_CLIENT_A",
+    "service": "edging",
+    "source": "Example only"
+  }
+]

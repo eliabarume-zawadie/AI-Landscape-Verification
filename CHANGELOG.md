@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.10.0] — Phase 10: Overrides, feedback and team knowledge — 2026-10-05
+
+### Added
+- **Feedback capture (PRD §29–30).** Every decision with a reason writes immutable `feedback` rows in the same transaction as the decision.
+  - **One row per service the reviewer disagreed on.** It records the AI status and confidence, the recommendation, the human decision, the reason and note, the reviewer, the run and the time. A disagreement with the overall recommendation only, or a reason given while agreeing, gives one location-level row.
+  - **Flagged photos.** Reviewers can flag up to 10 photos in the full-size viewer (button or `F`) as the "relevant image"; each flagged photo becomes its own row. Flagging opens the reason form even when agreeing; photos must belong to the location.
+  - The override audit event now lists the flagged photos.
+- **Feedback page (team leads).**
+  - **Filters:** date range, reason, service, and "only decisions against the AI".
+  - **Summary:** counts by reason, each one a click-to-filter link.
+  - **CSV export:** each export is audited (`FEEDBACK_EXPORTED`), and cells are guarded against spreadsheet formula injection.
+- **Team knowledge base (PRD §31).**
+  - **Content:** searchable notes (reviewer notes, service definitions, client instructions, edge cases, weekly feedback, past examples), scoped to a client and/or service.
+  - **Curation:** team leads add, revise and archive. Revising creates a new version and archives the old one, and a database trigger forbids changing or deleting note content. Additions and archives are audited.
+  - **Review screen:** the "Notes from the team" panel shows only notes for the location's client (or all clients) and its services, labelled as guidance that doesn't change the client's current rules.
+- **Import for historical notes:** `npm run knowledge:import -- notes.json` (all-or-nothing validation, safe to re-run). The format is in `docs/KNOWLEDGE_BASE.md`, with an example in `docs/examples/`.
+- **Readable location history:** each event names the person behind it and gives a plain description (decision, AI suggestion, time spent, override reason). Decisions list their feedback rows.
+
+### Safety
+- Feedback and notes never change assessments: no pipeline stage reads them. Notes are not sent to the AI; that needs evaluation first (Phase 13).
+- Migration `0010` adds columns to `feedback` (`location_id`, `reviewer_id`, `run_id`, `ai_recommendation`, `ai_confidence`, `is_override`), title, versioning and archive fields to `knowledge_notes`, the `knowledge_kind` enum, and three audit event types.
+
+### Verified
+- **Tests:** 22 new integration tests covering feedback rows, append-only enforcement, validation of flagged photos, team-lead-only access, CSV export and its audit, formula guarding, note versioning, the immutability trigger, client scoping and import. Plus a UI test for the flagging flow.
+- **Browser walk-through, light and dark:**
+  - **Reviewer:** sees team notes, flags a photo, decides with a reason.
+  - **Team lead:** sees the feedback row, downloads the CSV, adds and revises notes.
+  - **Reviewers** are redirected away from the Feedback page.
+
 ## [0.9.3] — Fix: dev server unreachable or refusing to start after a restart — 2026-10-05
 
 ### Fixed

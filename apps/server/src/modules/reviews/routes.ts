@@ -16,6 +16,7 @@ const reviewBody = z.object({
   reasonCode: z.enum(OVERRIDE_REASON_CODES).optional(),
   reasonText: z.string().max(2000).optional(),
   evidenceViewed: z.array(z.string().uuid()).max(500).optional(),
+  relevantImageIds: z.array(z.string().uuid()).max(10).optional(),
   openedAt: z.coerce.date().optional(),
 });
 const nextQuery = z.object({ lane: z.enum(["HUMAN_REVIEW", "FAST"]).optional(), after: z.string().uuid().optional() });
@@ -52,7 +53,7 @@ export async function reviewRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!body.success) return reply.code(400).send({ error: "INVALID_REQUEST", issues: body.error.issues });
     try {
       const r = await submitReview(ctx.db, { ...req.user!, ip: req.ip }, { locationId: p.data.id, ...stripUndefined(body.data) });
-      return reply.code(201).send({ reviewId: r.review.id, status: r.status, isOverride: r.review.isOverride, conflicts: r.conflicts });
+      return reply.code(201).send({ reviewId: r.review.id, status: r.status, isOverride: r.review.isOverride, conflicts: r.conflicts, feedbackRows: r.feedbackRows });
     } catch (err) {
       return sendError(reply, err);
     }

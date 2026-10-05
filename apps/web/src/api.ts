@@ -132,6 +132,54 @@ export interface LocationDetail {
   };
   services: { code: string }[];
   runs: { id: string; runNumber: number; status: string; reason: string; startedAt: string; completedAt: string | null; visionModel: string | null; promptVersion: string | null }[];
-  audit: { id: number; occurredAt: string; eventType: string; actorType: string; data: Record<string, unknown> }[];
+  audit: { id: number; occurredAt: string; eventType: string; actorType: string; actorName: string | null; data: Record<string, unknown> }[];
   openErrors: { id: string; category: string; message: string; occurredAt: string }[];
+}
+
+export interface KnowledgeNote {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  source: string | null;
+  clientId: string | null;
+  clientName: string | null;
+  serviceCode: string | null;
+  serviceName: string | null;
+  authorName: string | null;
+  supersedesId: string | null;
+  createdAt: string;
+  archivedAt: string | null;
+  archiveReason: string | null;
+}
+
+export interface NoteScopes {
+  clients: { id: string; code: string; name: string }[];
+  services: { code: string; name: string }[];
+}
+
+export interface FeedbackRow {
+  id: string;
+  createdAt: string;
+  locationId: string;
+  locationExternalId: string;
+  locationName: string | null;
+  clientName: string;
+  reviewerName: string;
+  serviceCode: string | null;
+  imageId: string | null;
+  imageRef: string | null;
+  aiRecommendation: string | null;
+  aiStatus: string | null;
+  aiConfidence: string | null;
+  humanDecision: string;
+  isOverride: boolean;
+  reasonCode: string;
+  reasonText: string | null;
+}
+
+export interface FeedbackSummary {
+  total: number;
+  byReason: { key: string; n: number }[];
+  byService: { key: string | null; n: number }[];
 }

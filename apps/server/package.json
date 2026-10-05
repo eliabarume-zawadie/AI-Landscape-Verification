@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
-    "user:create": "tsx src/cli/createUser.ts"
+    "user:create": "tsx src/cli/createUser.ts",
+    "knowledge:import": "tsx src/cli/importKnowledge.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

@@ -80,6 +80,17 @@ export const OVERRIDE_REASON_CODES = [
 ] as const;
 export type OverrideReasonCode = (typeof OVERRIDE_REASON_CODES)[number];
 
+/** PRD §31 knowledge-base note kinds. Notes are guidance; they never change client rules. */
+export const KNOWLEDGE_NOTE_KINDS = [
+  "REVIEWER_NOTE",
+  "SERVICE_DEFINITION",
+  "CLIENT_INSTRUCTION",
+  "EDGE_CASE",
+  "WEEKLY_FEEDBACK",
+  "HISTORICAL_EXAMPLE",
+] as const;
+export type KnowledgeNoteKind = (typeof KNOWLEDGE_NOTE_KINDS)[number];
+
 /** PRD §53. Levels 4 and 5 are deliberately not enable-able in this release. */
 export const AUTOMATION_LEVELS = [0, 1, 2, 3, 4, 5] as const;
 export type AutomationLevel = (typeof AUTOMATION_LEVELS)[number];
@@ -125,6 +136,9 @@ export const AUDIT_EVENT_TYPES = [
   "USER_CREATED",
   "USER_UPDATED",
   "ERROR",
+  "KNOWLEDGE_NOTE_CREATED",
+  "KNOWLEDGE_NOTE_ARCHIVED",
+  "FEEDBACK_EXPORTED",
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 

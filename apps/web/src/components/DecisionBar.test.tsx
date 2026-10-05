@@ -44,6 +44,33 @@ describe("DecisionBar", () => {
     expect(onDecide).toHaveBeenCalledWith("APPROVE", { code: "AI_MISSED_EVIDENCE", text: "" });
   });
 
+  it("asks for a reason when photos are flagged, even when agreeing", () => {
+    const onDecide = vi.fn();
+    const onClearFlags = vi.fn();
+    render(
+      <DecisionBar
+        ai={supported}
+        busy={false}
+        canEscalate
+        serverError={null}
+        flagged={[{ imageId: "i1", ref: "NS-DEMO-002-IMG004" }]}
+        onClearFlags={onClearFlags}
+        onDecide={onDecide}
+        onSkip={() => undefined}
+      />,
+    );
+    expect(screen.getByText("1 flagged")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Approve/ }));
+    expect(onDecide).not.toHaveBeenCalled();
+    expect(screen.getByText("Approve, with feedback on the AI")).toBeTruthy();
+    expect(screen.getByText("IMG004")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "clear" }));
+    expect(onClearFlags).toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "AI_MISSED_EVIDENCE" } });
+    fireEvent.click(screen.getByRole("button", { name: "Approve with reason" }));
+    expect(onDecide).toHaveBeenCalledWith("APPROVE", { code: "AI_MISSED_EVIDENCE", text: "" });
+  });
+
   it("supports keyboard shortcuts A / R / E / N", () => {
     const { onDecide, onSkip } = setup(supported);
     fireEvent.keyDown(window, { key: "a" });

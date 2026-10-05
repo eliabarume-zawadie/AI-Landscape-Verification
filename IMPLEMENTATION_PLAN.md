@@ -1,6 +1,6 @@
 # ALVIP — Implementation Plan
 
-**Status:** Phases 0–9 complete · Phase 10 next
+**Status:** Phases 0–10 complete · Phase 11 next
 **Source spec:** [PRD.md](PRD.md) v1.0
 **Last updated:** 2026-10-05
 
@@ -295,7 +295,7 @@ interface VisionProvider {
 | U7 | Per-client service definitions: what visual evidence is sufficient; what "Dead/Brown Grass" requires (report it? treat it? replace it?); how "Landscape Maintenance" decomposes per client | Client profiles (real), evidence rules |
 | U8 | Before/after convention: are photos labelled/tagged? Is EXIF/timestamp preserved? | Pairing signal weighting |
 | U9 | Approval to send client images to a third-party AI API (DPA, data residency) | Production vision provider |
-| U10 | Historical reviewer notes: format and location | Knowledge base import |
+| U10 | Historical reviewer notes: format and location | Bulk import of real notes (a JSON import exists: docs/KNOWLEDGE_BASE.md) |
 | U11 | Labelled historical examples for the golden dataset | Evaluation, provider selection, any automation |
 | U12 | SSO / identity provider | Production auth |
 | U13 | Hosting target (cloud/on-prem), object storage | Deployment, StorageProvider |
@@ -335,7 +335,7 @@ interface VisionProvider {
 | 7 | Evidence ranking, diversity, bundling | ✅ Done (CHANGELOG 0.7.0) |
 | 8 | Risk engine, location recommendation, lanes (contradiction detection delivered in Phase 5) | ✅ Done (CHANGELOG 0.8.0) |
 | 9 | Reviewer workspace, location detail, search | ✅ Done (CHANGELOG 0.9.0) |
-| 10 | Overrides, feedback, knowledge base | ⏳ |
+| 10 | Overrides, feedback, knowledge base | ✅ Done (CHANGELOG 0.10.0) — notes are reviewer guidance only; not sent to the AI until evaluated (Phase 13) |
 | 11 | NetSuite outbox sync (mock; production adapter when U1–U6 are resolved) | ⏳ |
 | 12 | Dashboard & analytics (with minimum-sample suppression) | ⏳ |
 | 13 | Golden dataset + evaluation runner | ⏳ (needs U11 for real data) |

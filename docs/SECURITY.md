@@ -14,7 +14,8 @@
 | Log hygiene | Cookie/authorization headers redacted from request logs |
 | Secrets | Env vars only; `.env` git-ignored; `.env.example` has no values; no dev passwords in source (seed generates random ones) |
 | Production guards | Startup refuses mocks, PGlite, or insecure cookies when `NODE_ENV=production` |
-| Audit | Logins, failed logins, logouts, user creation, config changes → append-only `audit_events` |
+| Audit | Logins, failed logins, logouts, user creation, config changes, knowledge-note changes, feedback exports → append-only `audit_events` |
+| Feedback export | Team leads only; each export audited with its filter and row count; CSV cells starting with `= + - @` (formula injection) are prefixed with `'` |
 | Image access | Bytes only via authenticated `/content` endpoint, scoped to the image's location; `Cache-Control: private, no-store`; full views audited; no public URLs; locators/storage keys never returned by the API |
 | Image storage | Private directory (`STORAGE_DIR`), atomic writes, storage keys validated against path traversal |
 | Malicious images | Decode guarded by `max_input_pixels` (decompression bombs) and `max_image_bytes`; undecodable files are recorded as `CORRUPT`, never served transcoded |
