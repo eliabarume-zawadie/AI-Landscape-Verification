@@ -53,7 +53,7 @@ export async function reviewRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!body.success) return reply.code(400).send({ error: "INVALID_REQUEST", issues: body.error.issues });
     try {
       const r = await submitReview(ctx.db, { ...req.user!, ip: req.ip }, { locationId: p.data.id, ...stripUndefined(body.data) }, reviewDeps(ctx));
-      return reply.code(201).send({ reviewId: r.review.id, status: r.status, isOverride: r.review.isOverride, conflicts: r.conflicts, feedbackRows: r.feedbackRows });
+      return reply.code(201).send({ reviewId: r.review.id, status: r.status, isOverride: r.review.isOverride, conflicts: r.conflicts, feedbackRows: r.feedbackRows, qcSampled: r.qcSampled });
     } catch (err) {
       return sendError(reply, err);
     }
@@ -87,7 +87,11 @@ export async function reviewRoutes(app: FastifyInstance, ctx: AppContext) {
   });
 }
 
-const reviewDeps = (ctx: AppContext) => ({ queue: ctx.queue, syncMaxAttempts: ctx.env.NETSUITE_SYNC_MAX_ATTEMPTS });
+const reviewDeps = (ctx: AppContext) => ({
+  queue: ctx.queue,
+  syncMaxAttempts: ctx.env.NETSUITE_SYNC_MAX_ATTEMPTS,
+  qc: { fastLane: ctx.env.QC_SAMPLE_RATE_FAST_LANE, approvals: ctx.env.QC_SAMPLE_RATE_APPROVALS },
+});
 
 function sendError(reply: FastifyReply, err: unknown) {
   if (err instanceof LocationNotFoundError) return reply.code(404).send({ error: "NOT_FOUND" });

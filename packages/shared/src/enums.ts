@@ -112,6 +112,17 @@ export type GoldenStatus = (typeof GOLDEN_STATUSES)[number];
 export const GOLDEN_EXPECTED = ["APPROVE", "REJECT"] as const;
 export type GoldenExpected = (typeof GOLDEN_EXPECTED)[number];
 
+/**
+ * PRD §90 rollout stages, set per client (Phase 15). Ordered: each includes the one before.
+ *   MANUAL     — no AI analysis; reviewers verify the photos themselves.
+ *   SHADOW     — stage 2: AI analyses live locations, result hidden from people deciding.
+ *   ASSIST     — stages 3–4: reviewers see AI evidence, bundle and suggestion.
+ *   FAST_TRACK — stage 5: low-risk "approve" suggestions for listed services go to the Fast
+ *                Lane, where a person still confirms. Stage 6 (automation) is not available.
+ */
+export const ROLLOUT_MODES = ["MANUAL", "SHADOW", "ASSIST", "FAST_TRACK"] as const;
+export type RolloutMode = (typeof ROLLOUT_MODES)[number];
+
 /** PRD §53. Levels 4 and 5 are deliberately not enable-able in this release. */
 export const AUTOMATION_LEVELS = [0, 1, 2, 3, 4, 5] as const;
 export type AutomationLevel = (typeof AUTOMATION_LEVELS)[number];
@@ -167,6 +178,9 @@ export const AUDIT_EVENT_TYPES = [
   "GOLDEN_EXAMPLE_RETIRED",
   "EVALUATION_REQUESTED",
   "EVALUATION_COMPLETED",
+  "ROLLOUT_CHANGED",
+  "QC_SAMPLED",
+  "QC_COMPLETED",
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 

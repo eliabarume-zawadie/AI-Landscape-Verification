@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.15.0] — Phase 15: Controlled rollout and quality checks — 2026-10-06
+
+### Added
+- **Rollout per client** (PRD §71, §90; the Rollout page). Modes are manual (no AI), shadow, AI assists, and fast track for listed services. They are set per client or as a default, by admins, each with a written reason. History is append-only and audited.
+  - **Server ceiling:** `AUTOMATION_LEVEL` caps the modes, and `SHADOW_MODE` remains a global switch. Fully automatic approval is not a mode.
+  - **Pipeline:** the AI runs, hidden or visible, according to the client's mode. The Fast Lane needs fast track for every required service of the location.
+  - **Fast track evidence:** an evaluation on real examples with enough samples and no false approvals, or an explicit business acknowledgement, recorded as "not validated".
+  - **Rollback:** narrowing or leaving fast track immediately moves no-longer-eligible Fast Lane locations back to normal review.
+- **Quality checks** (PRD §71): a share of approvals is re-checked by a second team lead (10% of Fast Lane confirmations and 2% of other approvals by default, via `QC_SAMPLE_RATE_*`).
+  - **Recording:** the checker confirms, or records the correct decision and why.
+  - **Rules:** the original decider can't check their own decision, and checks never change it.
+  - **Rates:** disagreement rates by sample type and client, with 95% ranges and small-sample suppression.
+- Migration `0013`: `rollout_settings` (append-only) and `qc_samples` (completed once), plus audit types. `docs/ROLLOUT.md`.
+
+### Verified
+- **Tests:** 10 new covering mode/ceiling rules, Fast Lane eligibility, environment defaults, admin-only changes with reasons, the fast-track validation gate, rollback out of the Fast Lane, the ceiling, per-client shadow and manual runs (no AI calls), QC sampling and the second-person rule, and the database guards.
+- **Browser:** an admin set a client to fast track (mowing) with an acknowledgement. A reviewer's approval was sampled, and a lead recorded a disagreement.
+
 ## [0.14.0] — Phase 14: Shadow mode — 2026-10-06
 
 ### Added

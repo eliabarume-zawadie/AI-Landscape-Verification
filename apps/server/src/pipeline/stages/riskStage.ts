@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { fastLaneAllowed, levelFor, type EffectiveRollout } from "../../services/rollout";
 import type { AiRecommendation, ClientProfile, Lane } from "@alvip/shared";
 import { recordAudit, type Actor } from "../../audit/audit";
 import type { ActiveConfig } from "../../config/configStore";
@@ -15,7 +16,17 @@ const UNUSUAL = new Set(["IRRELEVANT", "OBSTRUCTED", "TOO_DISTANT"]);
 /** PRD §24, §27, §36: risk level, AI recommendation and lane for a run. */
 export async function runRiskStage(
   ctx: JobContext,
-  input: { locationId: string; runId: string; assessments: ServiceAssessment[]; config: ActiveConfig; profile: ClientProfile; actor: Actor },
+  input: {
+    locationId: string;
+    runId: string;
+    assessments: ServiceAssessment[];
+    config: ActiveConfig;
+    profile: ClientProfile;
+    actor: Actor;
+    rollout: EffectiveRollout;
+    /** Required service codes (Fast Lane eligibility is per service). */
+    services: string[];
+  },
 ): Promise<{ risk: RiskResult; recommendation: AiRecommendation; recommendationExplanation: string; lane: Lane }> {
   const rows = await ctx.db
     .select({ usable: imageAnalysis.usable, isRep: imageAnalysis.isDuplicateRepresentative, issues: imageAnalysis.qualityIssues, status: imageAnalysis.analysisStatus })
@@ -40,11 +51,13 @@ export async function runRiskStage(
     thresholds: input.config.thresholds,
   });
   const rec = recommend(input.assessments, risk);
+  // Fast Lane only where the client's rollout enables fast track for every required service.
+  const fastTrack = fastLaneAllowed(input.rollout, input.services);
   const lane = chooseLane({
     recommendation: rec.recommendation,
     risk: risk.level,
-    automationLevel: ctx.env.AUTOMATION_LEVEL,
-    shadowMode: ctx.env.SHADOW_MODE,
+    automationLevel: fastTrack ? 3 : Math.min(2, levelFor(input.rollout.mode, ctx.env)),
+    shadowMode: input.rollout.shadow,
   });
 
   await ctx.db.transaction(async (tx) => {
@@ -64,8 +77,10 @@ export async function runRiskStage(
         factors: risk.factors.map((f) => f.factor),
         recommendation: rec.recommendation,
         lane,
-        automationLevel: ctx.env.AUTOMATION_LEVEL,
-        shadowMode: ctx.env.SHADOW_MODE,
+        automationLevel: levelFor(input.rollout.mode, ctx.env),
+        shadowMode: input.rollout.shadow,
+        rolloutMode: input.rollout.mode,
+        fastTrackEligible: fastTrack,
         thresholdsVersion: input.config.thresholds.version,
       },
     });

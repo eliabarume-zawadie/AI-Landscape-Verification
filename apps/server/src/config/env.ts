@@ -78,6 +78,10 @@ const envSchema = z.object({
   NETSUITE_SYNC_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(50).default(8),
   /** How often to queue decided locations that have no NetSuite sync yet. 0 disables. */
   NETSUITE_SYNC_SWEEP_INTERVAL_SEC: z.coerce.number().int().min(0).default(60),
+  /** Quality control (Phase 15): share of Fast Lane confirmations re-checked by a second lead (0–1). */
+  QC_SAMPLE_RATE_FAST_LANE: z.coerce.number().min(0).max(1).default(0.1),
+  /** Share of other approvals re-checked by a second lead (0–1). */
+  QC_SAMPLE_RATE_APPROVALS: z.coerce.number().min(0).max(1).default(0.02),
 
   /** Private image storage root (local filesystem driver). */
   STORAGE_DIR: z.string().default(path.join(dataDir, "images")),

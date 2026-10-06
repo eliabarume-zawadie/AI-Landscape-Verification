@@ -12,6 +12,7 @@ import { DashboardPage } from "./pages/Dashboard";
 import { EvaluationPage } from "./pages/Evaluation";
 import { EvaluationRunPage } from "./pages/EvaluationRun";
 import { ShadowPage } from "./pages/Shadow";
+import { RolloutPage } from "./pages/Rollout";
 import { GoldenExamplePage } from "./pages/GoldenExample";
 import { FastLanePage } from "./pages/FastLane";
 import { FeedbackPage } from "./pages/Feedback";
@@ -82,6 +83,7 @@ function Shell() {
           {isLead(user) && <NavLink to="/feedback">Feedback</NavLink>}
           {isLead(user) && <NavLink to="/evaluation">Evaluation</NavLink>}
           {isLead(user) && <NavLink to="/shadow">Shadow results</NavLink>}
+          {isLead(user) && <NavLink to="/rollout">Rollout</NavLink>}
         </nav>
         <div className="who">
           <span className="muted">
@@ -112,6 +114,7 @@ function App() {
         <Route path="dashboard" element={isLead(user) ? <DashboardPage /> : <Navigate to="/" replace />} />
         <Route path="evaluation" element={isLead(user) ? <EvaluationPage /> : <Navigate to="/" replace />} />
         <Route path="shadow" element={isLead(user) ? <ShadowPage /> : <Navigate to="/" replace />} />
+        <Route path="rollout" element={isLead(user) ? <RolloutPage /> : <Navigate to="/" replace />} />
         <Route path="evaluation/runs/:id" element={isLead(user) ? <EvaluationRunPage /> : <Navigate to="/" replace />} />
         <Route path="evaluation/examples/:id" element={isLead(user) ? <GoldenExamplePage /> : <Navigate to="/" replace />} />
         <Route path="feedback" element={isLead(user) ? <FeedbackPage /> : <Navigate to="/" replace />} />

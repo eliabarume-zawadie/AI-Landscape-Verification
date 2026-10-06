@@ -139,6 +139,18 @@ Shadow mode changes existing endpoints for locations whose current run is a shad
 - `GET /api/queue/summary`: risk counts report these locations as `NONE`.
 - `POST /api/locations/:id/review`: no reason required, `isOverride` false, `shadowMode` true.
 
+### Phase 15
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/rollout` | TEAM_LEAD | `{ ceiling, shadowSwitch, default, clients[{ id, code, name, rollout }], qc, qcRates }` |
+| GET | `/api/rollout/history` | TEAM_LEAD | `?client=<id>` (omit for the default) |
+| POST | `/api/rollout` | ADMIN | `{ clientId \| null, mode: MANUAL\|SHADOW\|ASSIST\|FAST_TRACK, fastTrackServices?, reason, evaluationRunId?, acknowledgeNoValidation? }` → 201 `{ effective, movedOutOfFastLane }`. 409 above the server ceiling; 428 fast track without validation or acknowledgement |
+| GET | `/api/qc` | TEAM_LEAD | `?status=PENDING\|DONE` → `{ samples, stats }` |
+| POST | `/api/qc/:id` | TEAM_LEAD | `{ verdict: CONFIRMED\|DISAGREE, correctDecision?, note? }`; 403 for the original decider; 409 if already checked |
+
+`POST /api/locations/:id/review` responses add `qcSampled`.
+
 ## Dashboard metric definitions (Phase 12)
 
 | Metric | Definition |

@@ -25,6 +25,7 @@ import {
   LANES,
   LOCATION_STATUSES,
   OVERRIDE_REASON_CODES,
+  ROLLOUT_MODES,
   REVIEW_DECISIONS,
   RISK_LEVELS,
   ROLES,
@@ -51,6 +52,7 @@ export const actorTypeEnum = pgEnum("actor_type", ["USER", "SYSTEM", "WORKER"]);
 export const knowledgeKindEnum = pgEnum("knowledge_kind", KNOWLEDGE_NOTE_KINDS);
 export const goldenStatusEnum = pgEnum("golden_status", GOLDEN_STATUSES);
 export const evaluationStatusEnum = pgEnum("evaluation_status", ["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]);
+export const rolloutModeEnum = pgEnum("rollout_mode", ROLLOUT_MODES);
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -751,4 +753,53 @@ export const evaluationResults = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("evaluation_results_run_idx").on(t.runId)],
+);
+
+// ---------------------------------------------------------------- rollout + QC (Phase 15)
+/**
+ * PRD §90 / §71 rollout settings. Append-only history: the newest row for a client wins;
+ * clientId null = the default for every client without its own row.
+ */
+export const rolloutSettings = pgTable(
+  "rollout_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id").references(() => clients.id),
+    mode: rolloutModeEnum("mode").notNull(),
+    /** FAST_TRACK only: services whose low-risk approve suggestions may use the Fast Lane. */
+    fastTrackServices: jsonb("fast_track_services").notNull().default([]),
+    /** The business reason / approval note for the change. */
+    reason: text("reason").notNull(),
+    /** Evaluation run offered as evidence, if any. */
+    evaluationRunId: uuid("evaluation_run_id").references(() => evaluationRuns.id),
+    /** False when fast track was enabled without validation evidence (explicitly acknowledged). */
+    validated: boolean("validated").notNull().default(false),
+    setBy: uuid("set_by").references(() => users.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index("rollout_settings_client_idx").on(t.clientId, t.createdAt)],
+);
+
+/**
+ * Quality-control samples (PRD §71, "Automated Quality Sampling"): a share of approvals is
+ * checked again by a second team lead. Never changes the original decision.
+ */
+export const qcSamples = pgTable(
+  "qc_samples",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    locationId: uuid("location_id").notNull().references(() => locations.id),
+    reviewId: uuid("review_id").notNull().references(() => humanReviews.id),
+    /** FAST_LANE (confirmed in a Fast Lane batch) | RANDOM */
+    reason: text("reason").notNull(),
+    sampledAt: ts("sampled_at").notNull().defaultNow(),
+    status: text("status").notNull().default("PENDING"),
+    checkedBy: uuid("checked_by").references(() => users.id),
+    checkedAt: ts("checked_at"),
+    /** CONFIRMED | DISAGREE */
+    verdict: text("verdict"),
+    correctDecision: text("correct_decision"),
+    note: text("note"),
+  },
+  (t) => [uniqueIndex("qc_samples_review_uq").on(t.reviewId), index("qc_samples_status_idx").on(t.status, t.sampledAt)],
 );

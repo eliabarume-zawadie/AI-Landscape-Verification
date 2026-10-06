@@ -6,6 +6,7 @@ import { auditEvents, feedback, humanReviews, images, locations, processingRuns,
 import type { QueueProvider } from "../integrations/queue/QueueProvider";
 import { hasRole, type AuthUser } from "./auth";
 import { queueDecisionSync } from "./netsuiteSync";
+import { maybeSampleForQc, type QcRates } from "./qc";
 import { LocationNotFoundError, transitionLocation } from "./locationTransitions";
 
 export class ReviewValidationError extends Error {
@@ -106,6 +107,8 @@ export interface ReviewDeps {
   queue: QueueProvider;
   /** NETSUITE_SYNC_MAX_ATTEMPTS */
   syncMaxAttempts: number;
+  /** Quality-control sampling of approvals (Phase 15). Omitted = no sampling. */
+  qc?: QcRates;
 }
 
 export async function submitReview(db: Db, user: AuthUser & { ip?: string }, input: ReviewInput, deps: ReviewDeps) {
@@ -204,6 +207,7 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
 
     // NetSuite write-back (PRD §39): outbox rows + sync job commit with the decision.
     await queueDecisionSync(tx, deps.queue, review!, { maxAttempts: deps.syncMaxAttempts });
+    const qcSampled = deps.qc ? await maybeSampleForQc(tx, review!, input.batch ?? false, deps.qc) : false;
 
     // Feedback (PRD §30): captured whenever a reason is given. Stored for evaluation only.
     let feedbackRows = 0;
@@ -254,7 +258,7 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
         data: { conflicts, reasonCode: input.reasonCode, reasonText: input.reasonText ?? null, relevantImageIds },
       });
     }
-    return { review: review!, conflicts, status: to, feedbackRows };
+    return { review: review!, conflicts, status: to, feedbackRows, qcSampled };
   });
 }
 

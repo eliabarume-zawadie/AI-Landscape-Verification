@@ -12,6 +12,7 @@ import { runImageStage } from "./stages/imageStage";
 import type { AiRecommendation, Lane, RiskLevel } from "@alvip/shared";
 import { runBundleStage } from "./stages/bundleStage";
 import { runRiskStage } from "./stages/riskStage";
+import { levelFor, rolloutFor, type EffectiveRollout } from "../services/rollout";
 import { runEvidenceStage, servicesToObserve } from "./stages/evidenceStage";
 import { runPairStage } from "./stages/pairStage";
 import { runVisionStage } from "./stages/visionStage";
@@ -50,7 +51,9 @@ export const processLocationHandler: JobHandler = {
     }
 
     const config = await loadActiveConfig(db);
-    const runId = await startRun(ctx, config, loc, payload, actor);
+    // Rollout (Phase 15): this client's mode decides whether the AI runs, hidden or visible.
+    const rollout = await rolloutFor(db, ctx.env, loc.clientId);
+    const runId = await startRun(ctx, config, loc, payload, actor, rollout);
 
     // ---- Stage: acquire image references
     const refs = await ctx.integrations.netsuite.getImages(loc.externalId);
@@ -97,7 +100,7 @@ export const processLocationHandler: JobHandler = {
     await ctx.heartbeat();
 
     // ---- Automation level 0: manual verification, no AI analysis.
-    if (ctx.env.AUTOMATION_LEVEL === 0) {
+    if (!rollout.aiEnabled) {
       await finishRun(ctx, { locationId: loc.id, runId, actor, aiAnalysisPerformed: false, reason: "AUTOMATION_LEVEL_0_MANUAL" });
       return;
     }
@@ -130,7 +133,7 @@ export const processLocationHandler: JobHandler = {
     });
 
     // ---- Stage: risk, recommendation and lane (Phase 8)
-    const outcome = await runRiskStage(ctx, { locationId: loc.id, runId, assessments, config, profile, actor });
+    const outcome = await runRiskStage(ctx, { locationId: loc.id, runId, assessments, config, profile, actor, rollout, services });
 
     await finishRun(ctx, {
       locationId: loc.id,
@@ -203,6 +206,7 @@ async function startRun(
   loc: LoadedLocation,
   payload: ProcessLocationPayload,
   actor: Actor,
+  rollout: EffectiveRollout,
 ): Promise<string> {
   const profile = config.clientProfiles.get(loc.clientCode);
   if (!profile) {
@@ -224,8 +228,8 @@ async function startRun(
         runNumber,
         reason: payload.reason,
         triggeredBy: payload.requestedBy ?? null,
-        automationLevel: ctx.env.AUTOMATION_LEVEL,
-        shadowMode: ctx.env.SHADOW_MODE,
+        automationLevel: levelFor(rollout.mode, ctx.env),
+        shadowMode: rollout.shadow,
         serviceRuleVersionId: config.serviceRuleVersionId,
         clientProfileId: profile.id,
         thresholdVersionId: config.thresholdVersionId,
@@ -247,8 +251,10 @@ async function startRun(
         serviceRulesVersion: config.registry.version,
         clientProfileVersion: profile.version,
         thresholdsVersion: config.thresholds.version,
-        automationLevel: ctx.env.AUTOMATION_LEVEL,
-        shadowMode: ctx.env.SHADOW_MODE,
+        automationLevel: levelFor(rollout.mode, ctx.env),
+        shadowMode: rollout.shadow,
+        rolloutMode: rollout.mode,
+        rolloutSource: rollout.source,
         applicationVersion: ctx.env.APP_VERSION,
       },
     });

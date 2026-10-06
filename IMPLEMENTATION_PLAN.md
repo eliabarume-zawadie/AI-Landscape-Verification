@@ -1,6 +1,6 @@
 # ALVIP — Implementation Plan
 
-**Status:** Phases 0–14 complete · Phase 15 next
+**Status:** Phases 0–15 complete on mock integrations · production NetSuite adapter and real evaluation data pending (U1–U6, U11)
 **Source spec:** [PRD.md](PRD.md) v1.0
 **Last updated:** 2026-10-05
 
@@ -340,6 +340,6 @@ interface VisionProvider {
 | 12 | Dashboard & analytics (with minimum-sample suppression) | ✅ Done (CHANGELOG 0.12.0) — false approval/rejection rates await ground truth (13, 15); time saved awaits a business baseline |
 | 13 | Golden dataset + evaluation runner | ✅ Done (CHANGELOG 0.13.0) — real accuracy still needs labelled historical examples (U11) |
 | 14 | Shadow mode | ✅ Done (CHANGELOG 0.14.0) |
-| 15 | Controlled rollout tooling | ⏳ |
+| 15 | Controlled rollout tooling | ✅ Done (CHANGELOG 0.15.0) |
 
 Each phase's completion is recorded in [CHANGELOG.md](CHANGELOG.md).
