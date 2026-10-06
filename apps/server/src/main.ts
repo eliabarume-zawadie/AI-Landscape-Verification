@@ -5,6 +5,7 @@ import { loadVerificationConfigFromDir } from "./config/verificationConfig";
 import { DatabaseInUseError, openDb } from "./db/client";
 import { buildApp } from "./http/app";
 import { createRuntime, createWorker } from "./runtime";
+import "./services/evaluation"; // registers the evaluation job handler
 import { LoginThrottle } from "./services/auth";
 
 async function main() {

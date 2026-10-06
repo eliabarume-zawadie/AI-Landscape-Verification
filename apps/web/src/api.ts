@@ -198,3 +198,72 @@ export interface NetSuiteWrite {
   remoteRef: string | null;
   alreadyApplied: boolean | null;
 }
+
+export interface Proportion {
+  value: number | null;
+  k: number;
+  n: number;
+  ci95: { low: number; high: number } | null;
+}
+export interface EvalMetrics {
+  samples: number;
+  correct: number;
+  incorrect: number;
+  falseApprovals: number;
+  falseRejections: number;
+  deferred: number;
+  errors: number;
+  falseApprovalRate: Proportion;
+  falseRejectionRate: Proportion;
+  precision: Proportion;
+  recall: Proportion;
+  accuracyWhenDecided: Proportion;
+  deferralRate: Proportion;
+  humanOverride: number;
+  smallSample: boolean;
+}
+export interface EvalSummary {
+  overall: EvalMetrics;
+  location: EvalMetrics;
+  byService: Record<string, EvalMetrics>;
+  byClient: Record<string, EvalMetrics>;
+  byTag: Record<string, EvalMetrics>;
+  byImageQuality: Record<string, EvalMetrics>;
+  byConfidence: Record<string, EvalMetrics>;
+  coverage: { tag: string; examples: number }[];
+  missingCoverage: string[];
+  examples: number;
+  demoExamples: number;
+  durationMs: number;
+  minSample: number;
+}
+export interface EvalRun {
+  id: string;
+  label: string | null;
+  status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+  requestedAt: string;
+  completedAt: string | null;
+  exampleCount: number | null;
+  versions: Record<string, string | number | null> | null;
+  options: { includeDemo?: boolean; visionModel?: string; clientId?: string; tags?: string[] };
+  costUsd: string | null;
+  error: string | null;
+  summary?: EvalSummary | null;
+  overall?: EvalMetrics | null;
+  demoExamples?: number | null;
+}
+export interface GoldenListItem {
+  id: string;
+  title: string;
+  clientName: string;
+  source: string;
+  services: string[];
+  expected: Record<string, string>;
+  tags: string[];
+  reviewerDecision: string | null;
+  status: "DRAFT" | "APPROVED" | "RETIRED";
+  createdAt: string;
+  createdBy: string | null;
+  approvedBy: string | null;
+  imageCount: number;
+}

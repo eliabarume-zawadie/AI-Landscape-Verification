@@ -9,6 +9,9 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider, errorText, isLead, useAuth } from "./auth";
 import { DashboardPage } from "./pages/Dashboard";
+import { EvaluationPage } from "./pages/Evaluation";
+import { EvaluationRunPage } from "./pages/EvaluationRun";
+import { GoldenExamplePage } from "./pages/GoldenExample";
 import { FastLanePage } from "./pages/FastLane";
 import { FeedbackPage } from "./pages/Feedback";
 import { KnowledgePage } from "./pages/Knowledge";
@@ -76,6 +79,7 @@ function Shell() {
           <NavLink to="/knowledge">Team knowledge</NavLink>
           {isLead(user) && <NavLink to="/dashboard">Dashboard</NavLink>}
           {isLead(user) && <NavLink to="/feedback">Feedback</NavLink>}
+          {isLead(user) && <NavLink to="/evaluation">Evaluation</NavLink>}
         </nav>
         <div className="who">
           <span className="muted">
@@ -104,6 +108,9 @@ function App() {
         <Route path="fast-lane" element={<FastLanePage />} />
         <Route path="knowledge" element={<KnowledgePage />} />
         <Route path="dashboard" element={isLead(user) ? <DashboardPage /> : <Navigate to="/" replace />} />
+        <Route path="evaluation" element={isLead(user) ? <EvaluationPage /> : <Navigate to="/" replace />} />
+        <Route path="evaluation/runs/:id" element={isLead(user) ? <EvaluationRunPage /> : <Navigate to="/" replace />} />
+        <Route path="evaluation/examples/:id" element={isLead(user) ? <GoldenExamplePage /> : <Navigate to="/" replace />} />
         <Route path="feedback" element={isLead(user) ? <FeedbackPage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

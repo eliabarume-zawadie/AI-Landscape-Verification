@@ -20,6 +20,7 @@ import {
   AUDIT_EVENT_TYPES,
   CONFIDENCE_LEVELS,
   ERROR_CATEGORIES,
+  GOLDEN_STATUSES,
   KNOWLEDGE_NOTE_KINDS,
   LANES,
   LOCATION_STATUSES,
@@ -48,6 +49,8 @@ export const outboxStatusEnum = pgEnum("outbox_status", ["PENDING", "IN_FLIGHT",
 export const evidenceRoleEnum = pgEnum("evidence_role", ["SUPPORTING", "CONTRADICTING", "CONTEXT"]);
 export const actorTypeEnum = pgEnum("actor_type", ["USER", "SYSTEM", "WORKER"]);
 export const knowledgeKindEnum = pgEnum("knowledge_kind", KNOWLEDGE_NOTE_KINDS);
+export const goldenStatusEnum = pgEnum("golden_status", GOLDEN_STATUSES);
+export const evaluationStatusEnum = pgEnum("evaluation_status", ["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]);
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const ts = (name: string) => timestamp(name, { withTimezone: true });
@@ -648,4 +651,104 @@ export const knowledgeNotes = pgTable(
     archiveReason: text("archive_reason"),
   },
   (t) => [index("knowledge_notes_scope_idx").on(t.clientId, t.serviceCode), index("knowledge_notes_active_idx").on(t.archivedAt, t.createdAt)],
+);
+
+// ---------------------------------------------------------------- golden dataset + evaluation (Phase 13)
+/**
+ * PRD §55 labelled example. `expected` is the business truth per service, set by a person.
+ * Only APPROVED examples are evaluated; once approved, content is frozen (DB trigger) —
+ * corrections retire it and create a new example that supersedes it.
+ */
+export const goldenExamples = pgTable(
+  "golden_examples",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    clientId: uuid("client_id").notNull().references(() => clients.id),
+    /** FROM_LOCATION | IMPORT | DEMO (mock data; never a measure of real performance). */
+    source: text("source").notNull(),
+    sourceLocationId: uuid("source_location_id").references(() => locations.id),
+    sourceReviewId: uuid("source_review_id").references(() => humanReviews.id),
+    /** Required service codes. */
+    services: jsonb("services").notNull(),
+    /** { [serviceCode]: "APPROVE" | "REJECT" } */
+    expected: jsonb("expected").notNull(),
+    tags: jsonb("tags").notNull().default([]),
+    /** What the reviewer decided at the time (may differ from the truth). */
+    reviewerDecision: text("reviewer_decision"),
+    reason: text("reason"),
+    notes: text("notes"),
+    status: goldenStatusEnum("status").notNull().default("DRAFT"),
+    createdBy: uuid("created_by").references(() => users.id),
+    createdAt: createdAt(),
+    approvedBy: uuid("approved_by").references(() => users.id),
+    approvedAt: ts("approved_at"),
+    retiredBy: uuid("retired_by").references(() => users.id),
+    retiredAt: ts("retired_at"),
+    retireReason: text("retire_reason"),
+    supersedesId: uuid("supersedes_id"),
+  },
+  (t) => [index("golden_examples_status_idx").on(t.status, t.createdAt)],
+);
+
+/** Photos of a golden example, copied into private storage so evaluations are repeatable. */
+export const goldenExampleImages = pgTable(
+  "golden_example_images",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    exampleId: uuid("example_id").notNull().references(() => goldenExamples.id),
+    ordinal: integer("ordinal").notNull(),
+    /** Original reference (the mock vision provider recognises demo photos by it). */
+    externalRef: text("external_ref").notNull(),
+    filename: text("filename"),
+    capturedAt: ts("captured_at"),
+    sha256: text("sha256").notNull(),
+    contentType: text("content_type"),
+    storageKey: text("storage_key").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("golden_example_images_example_idx").on(t.exampleId, t.ordinal)],
+);
+
+export const evaluationRuns = pgTable(
+  "evaluation_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    label: text("label"),
+    status: evaluationStatusEnum("status").notNull().default("PENDING"),
+    requestedBy: uuid("requested_by").references(() => users.id),
+    requestedAt: ts("requested_at").notNull().defaultNow(),
+    startedAt: ts("started_at"),
+    completedAt: ts("completed_at"),
+    /** { includeDemo, clientId?, tags?, visionModel? } */
+    options: jsonb("options").notNull().default({}),
+    /** Versions evaluated (PRD §42): provider, model, prompt, rules, thresholds, app. */
+    versions: jsonb("versions"),
+    exampleCount: integer("example_count"),
+    summary: jsonb("summary"),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }),
+    error: text("error"),
+  },
+  (t) => [index("evaluation_runs_requested_idx").on(t.requestedAt)],
+);
+
+/** One row per run × example × service, plus a location-level row (serviceCode null). Append-only. */
+export const evaluationResults = pgTable(
+  "evaluation_results",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id").notNull().references(() => evaluationRuns.id),
+    exampleId: uuid("example_id").notNull().references(() => goldenExamples.id),
+    serviceCode: text("service_code"),
+    expected: text("expected").notNull(),
+    aiStatus: text("ai_status"),
+    aiConfidence: text("ai_confidence"),
+    /** APPROVE | REJECT | NO_DECISION */
+    predicted: text("predicted").notNull(),
+    /** CORRECT | FALSE_APPROVAL | FALSE_REJECTION | DEFERRED | ERROR */
+    outcome: text("outcome").notNull(),
+    explanation: text("explanation"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("evaluation_results_run_idx").on(t.runId)],
 );

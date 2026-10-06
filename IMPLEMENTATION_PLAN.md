@@ -1,6 +1,6 @@
 # ALVIP — Implementation Plan
 
-**Status:** Phases 0–12 complete · Phase 13 next
+**Status:** Phases 0–13 complete · Phase 14 next
 **Source spec:** [PRD.md](PRD.md) v1.0
 **Last updated:** 2026-10-05
 
@@ -338,7 +338,7 @@ interface VisionProvider {
 | 10 | Overrides, feedback, knowledge base | ✅ Done (CHANGELOG 0.10.0) — notes are reviewer guidance only; not sent to the AI until evaluated (Phase 13) |
 | 11 | NetSuite outbox sync (mock; production adapter when U1–U6 are resolved) | ✅ Done (CHANGELOG 0.11.0) — against the mock adapter; production adapter still blocked on U1–U6 |
 | 12 | Dashboard & analytics (with minimum-sample suppression) | ✅ Done (CHANGELOG 0.12.0) — false approval/rejection rates await ground truth (13, 15); time saved awaits a business baseline |
-| 13 | Golden dataset + evaluation runner | ⏳ (needs U11 for real data) |
+| 13 | Golden dataset + evaluation runner | ✅ Done (CHANGELOG 0.13.0) — real accuracy still needs labelled historical examples (U11) |
 | 14 | Shadow mode | ⏳ |
 | 15 | Controlled rollout tooling | ⏳ |
 

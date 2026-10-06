@@ -5,6 +5,7 @@ import { loadActiveConfig } from "./config/configStore";
 import { ConfigError, loadDotEnvFile, loadEnv } from "./config/env";
 import { openDb } from "./db/client";
 import { createRuntime, createWorker } from "./runtime";
+import "./services/evaluation"; // registers the evaluation job handler
 
 loadDotEnvFile();
 const env = loadEnv();

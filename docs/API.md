@@ -106,6 +106,25 @@ Non-API GETs return the reviewer UI (`index.html`) when `WEB_DIST_DIR` exists.
 | GET | `/api/dashboard` | TEAM_LEAD | `?from&to` (local dates `YYYY-MM-DD` in `METRICS_TIMEZONE`, inclusive, default today, max 366 days) `&client&service&risk&reviewer`. Returns `period, minSample, diagnosis[], queue, timing, ai, efficiency, cost, netsuite, health, reviewers[]`. Every rate is `{ value, numerator, denominator, suppressed }`; `value` is null below `thresholds.metrics.min_sample_size` |
 | GET | `/api/dashboard/scopes` | TEAM_LEAD | clients and reviewers for the filters |
 
+### Phase 13
+
+All TEAM_LEAD unless noted. Definitions: docs/AI_EVALUATION.md.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/golden` | `?status=DRAFT\|APPROVED\|RETIRED` → `{ examples }` |
+| POST | `/api/golden/from-location/:id` | decided locations only (409 otherwise); copies photos → 201 `{ id }` (draft) |
+| POST | `/api/golden/demo` | ADMIN; mock image source only; creates approved demo examples once → `{ created }` |
+| GET | `/api/golden/:id` | example with photos |
+| PATCH | `/api/golden/:id` | drafts only (409 otherwise): `{ title?, expected?, tags?, reason?, notes? }` |
+| POST | `/api/golden/:id/approve` | needs another lead than the creator (403), or an admin |
+| POST | `/api/golden/:id/retire` | `{ reason }` |
+| GET | `/api/golden/images/:id/content` | `?variant=thumb\|full`, always JPEG |
+| GET | `/api/evaluations/vision` | current AI provider info (`external` → runs are billed) |
+| GET | `/api/evaluations` | runs with headline metrics |
+| POST | `/api/evaluations` | `{ label?, includeDemo?, clientId?, tags?, visionModel? (ADMIN), acknowledgeCost? }` → 202 `{ id }`. 409 while another run is active; 422 with no approved examples in scope; 428 when an external provider is used without `acknowledgeCost` |
+| GET | `/api/evaluations/:id` | `{ run (summary, versions), results }` |
+
 ## Dashboard metric definitions (Phase 12)
 
 | Metric | Definition |

@@ -15,6 +15,7 @@ import { knowledgeRoutes } from "../modules/knowledge/routes";
 import { feedbackRoutes } from "../modules/feedback/routes";
 import { netsuiteRoutes } from "../modules/netsuite/routes";
 import { dashboardRoutes } from "../modules/dashboard/routes";
+import { evaluationRoutes } from "../modules/evaluation/routes";
 import { registerAuth } from "./authPlugin";
 import type { AppContext } from "./context";
 
@@ -81,6 +82,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await feedbackRoutes(app, ctx);
   await netsuiteRoutes(app, ctx);
   await dashboardRoutes(app, ctx);
+  await evaluationRoutes(app, ctx);
 
   // Reviewer UI (single deployable): static assets + SPA fallback for client-side routes.
   if (existsSync(path.join(ctx.env.WEB_DIST_DIR, "index.html"))) {

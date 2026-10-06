@@ -91,6 +91,27 @@ export const KNOWLEDGE_NOTE_KINDS = [
 ] as const;
 export type KnowledgeNoteKind = (typeof KNOWLEDGE_NOTE_KINDS)[number];
 
+/** PRD §55 / §85 case types a golden dataset must cover. */
+export const GOLDEN_CASE_TAGS = [
+  "CLEAR_APPROVAL",
+  "CLEAR_REJECTION",
+  "AMBIGUOUS",
+  "POOR_QUALITY",
+  "DUPLICATES",
+  "CONTRADICTION",
+  "BEFORE_AFTER",
+  "MISSING_BEFORE",
+  "MISSING_AFTER",
+  "MULTIPLE_SERVICES",
+  "DIFFICULT_CONDITIONS",
+] as const;
+export type GoldenCaseTag = (typeof GOLDEN_CASE_TAGS)[number];
+export const GOLDEN_STATUSES = ["DRAFT", "APPROVED", "RETIRED"] as const;
+export type GoldenStatus = (typeof GOLDEN_STATUSES)[number];
+/** The business truth for one service in a golden example. */
+export const GOLDEN_EXPECTED = ["APPROVE", "REJECT"] as const;
+export type GoldenExpected = (typeof GOLDEN_EXPECTED)[number];
+
 /** PRD §53. Levels 4 and 5 are deliberately not enable-able in this release. */
 export const AUTOMATION_LEVELS = [0, 1, 2, 3, 4, 5] as const;
 export type AutomationLevel = (typeof AUTOMATION_LEVELS)[number];
@@ -140,6 +161,12 @@ export const AUDIT_EVENT_TYPES = [
   "KNOWLEDGE_NOTE_ARCHIVED",
   "FEEDBACK_EXPORTED",
   "NETSUITE_SYNC_RETRY_REQUESTED",
+  "GOLDEN_EXAMPLE_CREATED",
+  "GOLDEN_EXAMPLE_UPDATED",
+  "GOLDEN_EXAMPLE_APPROVED",
+  "GOLDEN_EXAMPLE_RETIRED",
+  "EVALUATION_REQUESTED",
+  "EVALUATION_COMPLETED",
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 

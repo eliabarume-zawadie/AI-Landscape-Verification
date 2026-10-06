@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, type EvidenceResponse, type LocationDetail, type NetSuiteWrite } from "../api";
 import { isLead, useAuth } from "../auth";
 import { RiskTag, StatusTag } from "../components/bits";
@@ -41,6 +41,7 @@ const REPROCESS = [
 export function LocationDetailPage() {
   const { id = "" } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [d, setD] = useState<LocationDetail | null>(null);
   const [ev, setEv] = useState<EvidenceResponse | null>(null);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
@@ -100,6 +101,23 @@ export function LocationDetailPage() {
           <Link className="btn primary" to={`/review/${loc.id}`}>
             Review this location
           </Link>
+        )}
+        {isLead(user) && reviews.some((r) => r.decision === "APPROVE" || r.decision === "REJECT") && (
+          <button
+            className="btn"
+            title="Copy this location's photos and decision into the evaluation set, to check the correct answer"
+            onClick={async () => {
+              setMsg(null);
+              try {
+                const r = await api<{ id: string }>(`/api/golden/from-location/${loc.id}`, { method: "POST", body: {} });
+                navigate(`/evaluation/examples/${r.id}`);
+              } catch (err) {
+                setMsg(err instanceof ApiError ? err.message : "Couldn't add it to the evaluation set.");
+              }
+            }}
+          >
+            Add to evaluation set
+          </button>
         )}
         {isLead(user) && loc.status === "NETSUITE_ERROR" && (
           <button className="btn primary" onClick={() => act(`/api/locations/${loc.id}/netsuite/retry`, {}, "Sending to NetSuite again.")}>

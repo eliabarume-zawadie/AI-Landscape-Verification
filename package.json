@@ -23,7 +23,8 @@
     "db:migrate": "npm run db:migrate -w @alvip/server",
     "db:seed": "npm run db:seed -w @alvip/server",
     "user:create": "npm run user:create -w @alvip/server --",
-    "knowledge:import": "npm run knowledge:import -w @alvip/server --"
+    "knowledge:import": "npm run knowledge:import -w @alvip/server --",
+    "golden:import": "npm run golden:import -w @alvip/server --"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

@@ -1083,3 +1083,50 @@ table.list td.num {
     padding: 16px;
   }
 }
+
+/* ---------- Phase 13: evaluation ---------- */
+.coverage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pill.gap {
+  border-style: dashed;
+  color: var(--brick);
+  border-color: var(--brick);
+}
+.pill-check {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 2px 10px 2px 6px;
+  font-size: 13px;
+}
+table.list td.bad {
+  color: var(--brick);
+  font-weight: 600;
+}
+.outcome {
+  display: inline-block;
+  font-size: 13px;
+  padding: 1px 8px;
+  border-radius: var(--r);
+  border: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.o-correct {
+  background: var(--turf-wash);
+  border-color: var(--turf);
+}
+.o-false_approval {
+  background: var(--brick-wash);
+  border-color: var(--brick);
+  font-weight: 600;
+}
+.o-false_rejection,
+.o-deferred {
+  background: var(--ochre-wash);
+  border-color: var(--ochre);
+}
+.o-error {
+  border-style: dashed;
+}

@@ -10,7 +10,13 @@ import { ingestQueue } from "./services/ingest";
 import { netsuiteSyncHandler, queueUnsyncedDecisions } from "./services/netsuiteSync";
 import { purgeExpiredImages } from "./services/retention";
 
+// Evaluation imports createWorker (it runs the pipeline in a sandbox), so its handler is
+// added lazily to avoid an import cycle at module load.
 export const JOB_HANDLERS: JobHandler[] = [processLocationHandler, netsuiteSyncHandler];
+let evaluationHandler: JobHandler | null = null;
+export function registerEvaluationHandler(h: JobHandler) {
+  evaluationHandler = h;
+}
 
 export interface Runtime {
   queue: QueueProvider;
@@ -24,7 +30,7 @@ export function createRuntime(env: Env, db: Db, overrides: Partial<Runtime> = {}
   };
 }
 
-export function createWorker(env: Env, db: Db, runtime: Runtime, log: Logger, opts: { pollNetSuite?: boolean } = {}): Worker {
+export function createWorker(env: Env, db: Db, runtime: Runtime, log: Logger, opts: { pollNetSuite?: boolean; evaluation?: boolean } = {}): Worker {
   const periodic: PeriodicTask[] = [];
 
   if ((opts.pollNetSuite ?? true) && env.NETSUITE_POLL_INTERVAL_SEC > 0) {
@@ -68,5 +74,6 @@ export function createWorker(env: Env, db: Db, runtime: Runtime, log: Logger, op
     });
   }
 
-  return new Worker({ db, env, queue: runtime.queue, integrations: runtime.integrations, handlers: JOB_HANDLERS, log, periodic });
+  const handlers = opts.evaluation === false || !evaluationHandler ? JOB_HANDLERS : [...JOB_HANDLERS, evaluationHandler];
+  return new Worker({ db, env, queue: runtime.queue, integrations: runtime.integrations, handlers, log, periodic });
 }

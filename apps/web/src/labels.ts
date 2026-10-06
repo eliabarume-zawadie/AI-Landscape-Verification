@@ -174,3 +174,28 @@ export const ERROR_CATEGORY_HINT: Record<string, string> = {
   NETSUITE_VALIDATION: "NetSuite rejected the update, or the record changed in NetSuite. Check the record there.",
   CONFIGURATION: "The NetSuite integration is not configured correctly.",
 };
+
+export const TAG_LABEL: Record<string, string> = {
+  CLEAR_APPROVAL: "Clear approval",
+  CLEAR_REJECTION: "Clear rejection",
+  AMBIGUOUS: "Ambiguous",
+  POOR_QUALITY: "Poor photos",
+  DUPLICATES: "Duplicates",
+  CONTRADICTION: "Contradiction",
+  BEFORE_AFTER: "Before/after",
+  MISSING_BEFORE: "No before photo",
+  MISSING_AFTER: "No after photo",
+  MULTIPLE_SERVICES: "Several services",
+  DIFFICULT_CONDITIONS: "Difficult conditions",
+  UNTAGGED: "No case type",
+};
+
+export const OUTCOME_LABEL: Record<string, string> = {
+  CORRECT: "Correct",
+  FALSE_APPROVAL: "False approval",
+  FALSE_REJECTION: "False rejection",
+  DEFERRED: "Left to a person",
+  ERROR: "Didn't finish",
+};
+
+export const SOURCE_LABEL: Record<string, string> = { FROM_LOCATION: "From a location", IMPORT: "Imported", DEMO: "Demo (mock data)" };

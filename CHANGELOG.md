@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.13.0] — Phase 13: Evaluation set and evaluation runner — 2026-10-06
+
+### Added
+- **Evaluation set ("golden examples", PRD §55):** examples with the correct answer per service, checked by a person.
+  - **Creating:** from any decided location (**Add to evaluation set**: photos copied, truth prefilled from the decision, case types suggested), or by importing past cases with `npm run golden:import -- <folder>` (photos plus `manifest.json`, HEIC supported, all-or-nothing).
+  - **Approving:** drafts need a second team lead (admins may self-approve, which is audited). Approved examples are frozen by a database trigger; corrections retire them and add a new one. Nothing is ever deleted.
+  - **Demo examples:** 10 approved examples from the mock scenarios, with their intended truth, always labelled as demo data.
+- **Evaluation runner (PRD §56):** runs the exact production pipeline (active rules, thresholds, client profiles, AI provider) against approved examples.
+  - **Isolation:** it runs in a temporary in-memory database, so the live queue, locations, dashboard and NetSuite are untouched. It runs in the background, one at a time.
+  - **Cost:** external AI runs require confirming the cost.
+  - **Model trials:** admins can trial another model for a single run without changing production.
+- **Report:**
+  - **Rates:** false approval and false rejection rates, precision, recall, left to a person, and right when it decided, each with a 95% range.
+  - **Report table:** samples, correct, incorrect, false approval, false rejection, left to a person, human override.
+  - **Breakdowns:** by service, whole location, client, case type, photo quality and AI confidence (calibration).
+  - **Context:** coverage gaps, the versions evaluated, a comparison with another run, and per-example results.
+  - **Warnings:** demo data and small samples are called out on the report itself.
+- Migration `0012`: `golden_examples`, `golden_example_images`, `evaluation_runs`, `evaluation_results` (append-only), immutability triggers, audit types.
+
+### Safety
+- Evaluation results never change production behaviour (PRD §57). Automating any decision still needs a representative real dataset, measured results, and explicit business approval (PRD §54); levels 4 and 5 stay disabled in code.
+- The report never presents a bare "0%": with few examples, the 95% range shows how little that means.
+
+### Verified
+- **Tests:** 14 new: 7 unit tests for scoring and intervals, and 7 integration tests covering creation from a location, label rules, the database freeze, demo seeding, folder import (including path checks), a full sandboxed run with outcomes checked case by case, and a check that no live locations, NetSuite writes or outbox rows were created.
+- **Browser** (light and dark):
+  - A lead created a draft, and self-approval was refused.
+  - An admin seeded demos and ran an evaluation.
+  - The report showed 0 false approvals on 5 "should reject" cases with a 0–43% range, plus the demo-data and small-sample warnings and the coverage gaps.
+
 ## [0.12.0] — Phase 12: Team lead dashboard — 2026-10-06
 
 ### Added
