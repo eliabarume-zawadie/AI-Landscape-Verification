@@ -8,6 +8,7 @@ import { StrictMode, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider, errorText, isLead, useAuth } from "./auth";
+import { DashboardPage } from "./pages/Dashboard";
 import { FastLanePage } from "./pages/FastLane";
 import { FeedbackPage } from "./pages/Feedback";
 import { KnowledgePage } from "./pages/Knowledge";
@@ -73,6 +74,7 @@ function Shell() {
           </NavLink>
           <NavLink to="/fast-lane">Fast lane</NavLink>
           <NavLink to="/knowledge">Team knowledge</NavLink>
+          {isLead(user) && <NavLink to="/dashboard">Dashboard</NavLink>}
           {isLead(user) && <NavLink to="/feedback">Feedback</NavLink>}
         </nav>
         <div className="who">
@@ -101,6 +103,7 @@ function App() {
         <Route path="locations/:id" element={<LocationDetailPage />} />
         <Route path="fast-lane" element={<FastLanePage />} />
         <Route path="knowledge" element={<KnowledgePage />} />
+        <Route path="dashboard" element={isLead(user) ? <DashboardPage /> : <Navigate to="/" replace />} />
         <Route path="feedback" element={isLead(user) ? <FeedbackPage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

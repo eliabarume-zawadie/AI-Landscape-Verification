@@ -187,6 +187,7 @@ export async function syncDecision(db: Db, netsuite: NetSuiteAdapter, payload: N
       locationId: loc.id,
       data: { operation: row.operation, attempt: row.attempts + 1 },
     });
+    const started = Date.now();
     const ack =
       row.operation === OPERATIONS.VERIFY
         ? await netsuite.updateVerification(loc.externalId, {
@@ -205,7 +206,7 @@ export async function syncDecision(db: Db, netsuite: NetSuiteAdapter, payload: N
       entityType: "netsuite_sync_outbox",
       entityId: row.id,
       locationId: loc.id,
-      data: { operation: row.operation, remoteRef: ack.remoteRef ?? null, alreadyApplied: ack.alreadyApplied },
+      data: { operation: row.operation, remoteRef: ack.remoteRef ?? null, alreadyApplied: ack.alreadyApplied, latencyMs: Date.now() - started },
     });
   }
 

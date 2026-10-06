@@ -99,8 +99,34 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 
 Non-API GETs return the reviewer UI (`index.html`) when `WEB_DIST_DIR` exists.
 
-## Planned (PRD §76)
+### Phase 12
 
-| Method | Path | Phase |
-|---|---|---|
-| GET | `/api/dashboard`, `/api/analytics` | 12 |
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/dashboard` | TEAM_LEAD | `?from&to` (local dates `YYYY-MM-DD` in `METRICS_TIMEZONE`, inclusive, default today, max 366 days) `&client&service&risk&reviewer`. Returns `period, minSample, diagnosis[], queue, timing, ai, efficiency, cost, netsuite, health, reviewers[]`. Every rate is `{ value, numerator, denominator, suppressed }`; `value` is null below `thresholds.metrics.min_sample_size` |
+| GET | `/api/dashboard/scopes` | TEAM_LEAD | clients and reviewers for the filters |
+
+## Dashboard metric definitions (Phase 12)
+
+| Metric | Definition |
+|---|---|
+| Received | Locations whose `received_at` falls in the period |
+| AI processed | Locations with a processing run that succeeded in the period |
+| Decided | Approve/reject decisions submitted in the period (escalations counted separately) |
+| Completed | Locations that reached `COMPLETED` (decision recorded in NetSuite) in the period |
+| Still open now | Right now, regardless of period: before review + awaiting review + photo/AI/data problems |
+| Cleared | Decided ÷ (decided + still open). An operational share, shown without a minimum sample |
+| Review time | Median of decision time − opening time (Fast Lane batches and sessions over 4 h excluded) |
+| Agreed with the AI | Among decisions where the AI recommended approve or reject: the human decided the same. "Can't decide" suggestions are the AI deferring and are reported separately |
+| Decisions against the AI | Decisions that needed a reason because they went against the AI (`is_override`) ÷ decisions with an AI assessment |
+| "Approve" suggestions rejected | The closest observable signal to false approvals. It is **not** the false approval rate |
+| False approval / rejection rate | **Not measured**: needs checked ground truth (golden dataset, Phase 13; QC sampling, Phase 15) |
+| Agreement by AI confidence | Per service: SUPPORTED vs a human approve, NOT_SUPPORTED/CONTRADICTORY vs a reject, by the AI's confidence band. Agreement with reviewers, not accuracy |
+| Photos analysed | ANALYZED/CACHED ÷ photos sent to the AI (unusable and duplicate photos are not sent) |
+| Quality failures | Photos marked unusable ÷ all photos in runs completed in the period |
+| Decided without opening every photo | Decisions where fewer photos were opened full size than the location has |
+| Time saved | Only when `METRICS_BASELINE_REVIEW_SECONDS` is set: (baseline − mean review time) × decisions |
+| AI cost | Sum of run costs for runs completed in the period; per location, per photo, per decided location; by client. Not split per service: one AI call covers all of a location's services |
+| NetSuite | Writes created in the period by state; mean write latency |
+
+Rates over fewer than `thresholds.metrics.min_sample_size` (30) cases are returned as `value: null, suppressed: true` and shown as "Not enough data".

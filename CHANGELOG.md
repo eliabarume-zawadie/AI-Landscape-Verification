@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.12.0] — Phase 12: Team lead dashboard — 2026-10-06
+
+### Added
+- **Dashboard** (`/dashboard`, team leads and admins; PRD §4, §44, §79, §80).
+  - **Hero and diagnosis:** opens with what is still open and how much of the workload is cleared. A plain-language answer to "why isn't today's queue clearing?" lists what blocks it, most important first:
+    - a stalled worker
+    - credential failures
+    - AI provider outage
+    - decisions stuck on the way to NetSuite
+    - problems waiting in the Problems lane
+    - reviewer backlog with the oldest wait
+  - **Queue:** received, AI processed, decided, escalated, completed in NetSuite, waiting for a reviewer (with oldest wait), being analysed, problems, on the way to NetSuite.
+  - **Time:** median review time per location, AI processing per location and per photo, reviewer time saved. Time saved needs `METRICS_BASELINE_REVIEW_SECONDS`; it is never guessed.
+  - **AI and reviewers:**
+    - agreement with the AI, decisions against the AI, and how often the AI left the call to a person
+    - "approve" suggestions that reviewers rejected
+    - photos analysed and quality failures, plus AI response time
+    - agreement by AI confidence band, and the AI suggestion mix
+  - **Effort:** photos per location, photos opened full size, decisions made without opening every photo.
+  - **AI cost:** total, per location, per photo, per decided location, photo analysis vs before/after, cache reuse, and a per-client table.
+  - **Reviewers table, plus system health:** NetSuite writes and latency, job backlog, last finished job, open problems by category.
+  - **Filters:** Today / 7 days / 30 days or a custom range, client, service, risk, reviewer. Status, AI confidence and exception type appear as breakdowns. Today's view refreshes every minute.
+- **Honesty rules:**
+  - Any rate based on fewer than 30 cases (`thresholds.metrics.min_sample_size`) shows "Not enough data" with the count, never a percentage.
+  - False approval and false rejection rates show "Not measured yet" until checked ground truth exists (Phases 13 and 15).
+  - Agreement is labelled as agreement with reviewers, not accuracy.
+- NetSuite write latency is now recorded on each successful write.
+- `GET /api/dashboard`, `GET /api/dashboard/scopes`, and a metric definitions table in `docs/API.md`.
+
+### Fixed
+- On phone-width screens the top bar no longer pushes every page wider than the screen. The navigation scrolls inside its own row.
+
+### Design
+- Chart bars use a dedicated `--data` colour, validated for lightness, chroma and contrast against both light and dark surfaces. The UI's muted blue failed the chroma floor for chart marks.
+
+### Verified
+- **Tests:** 11 new tests covering the rate suppression rule, agreement and deferral counting, confidence-band agreement, diagnosis wording and order, and the dashboard over real decisions (queue counts, clearance, timing, suppression, NetSuite writes, filters, range validation, configurable minimum sample, unset baseline).
+- **Browser:** checked in light and dark, desktop and 390 px phone width, with no sideways scrolling.
+
 ## [0.11.0] — Phase 11: NetSuite write-back — 2026-10-06
 
 ### Added

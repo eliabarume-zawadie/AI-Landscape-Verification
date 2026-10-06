@@ -107,6 +107,11 @@ const envSchema = z.object({
   /** How often the worker purges image bytes past retention. 0 disables. */
   RETENTION_SWEEP_INTERVAL_SEC: z.coerce.number().int().min(0).default(3600),
   METRICS_TIMEZONE: z.string().default("America/New_York"),
+  /**
+   * How long a reviewer needed per location before ALVIP, in seconds (business-provided).
+   * Unset = "time saved" is not calculated rather than guessed.
+   */
+  METRICS_BASELINE_REVIEW_SECONDS: z.coerce.number().positive().optional(),
 
   // NetSuite (PRD §37). Never commit real values.
   NETSUITE_ACCOUNT_ID: z.string().optional(),
