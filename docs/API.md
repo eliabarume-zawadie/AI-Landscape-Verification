@@ -125,6 +125,20 @@ All TEAM_LEAD unless noted. Definitions: docs/AI_EVALUATION.md.
 | POST | `/api/evaluations` | `{ label?, includeDemo?, clientId?, tags?, visionModel? (ADMIN), acknowledgeCost? }` → 202 `{ id }`. 409 while another run is active; 422 with no approved examples in scope; 428 when an external provider is used without `acknowledgeCost` |
 | GET | `/api/evaluations/:id` | `{ run (summary, versions), results }` |
 
+### Phase 14
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/shadow` | TEAM_LEAD | `?from&to&client` → `{ enabled, summary: { decisions, agreement, aiApproveHumanReject (with ci95), aiRejectHumanApprove, aiDeferred, byService, byConfidence, aiSecondsMedian, humanSecondsMedian }, items[] }` |
+
+Shadow mode changes existing endpoints for locations whose current run is a shadow run, while the AI is hidden from the caller (always for reviewers; until decided for leads):
+- `GET /api/locations`: `riskLevel` and `aiRecommendation` are null; risk and recommendation filters exclude these rows; risk sort puts them last.
+- `GET /api/locations/:id`: same fields null; AI audit events have empty data; adds `shadow`, `aiHidden`.
+- `GET /api/locations/:id/evidence`: `{ aiHidden: true, services: [], requiredServices }`.
+- `GET /api/locations/:id/images`: no evidence rank, bundle membership or vision status; `order=evidence` falls back to upload order.
+- `GET /api/queue/summary`: risk counts report these locations as `NONE`.
+- `POST /api/locations/:id/review`: no reason required, `isOverride` false, `shadowMode` true.
+
 ## Dashboard metric definitions (Phase 12)
 
 | Metric | Definition |

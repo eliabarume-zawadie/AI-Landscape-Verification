@@ -80,6 +80,18 @@ The AI's per-service status becomes a prediction:
 - **Also shown:** the versions evaluated (provider, model, prompt, rules, thresholds, application) and coverage gaps.
 - **Comparing runs:** any two runs can be compared. The page warns when the example sets differ.
 
+## Shadow mode (PRD §89, rollout stage 2)
+
+Set `SHADOW_MODE=true` (with `AUTOMATION_LEVEL` ≥ 1) and restart. From then on:
+
+- **AI still runs:** every new location is analysed as usual and recorded as a shadow run (`processing_runs.shadow_mode`). A location keeps the mode of its current run, so switching the setting never reveals the AI half-way through a location.
+- **Hidden at the server:** the API withholds the AI result from the people deciding: suggestion, risk, service verdicts, explanations, evidence ranking and bundle, before/after notes, and AI audit details. Filters and sorting by risk or suggestion skip these locations, so they can't reveal it indirectly. Reviewers never see it. Team leads and admins see it only after the location is decided, to compare.
+- **Normal work:** reviewers see the required services and all photos (quality, duplicate and before/after markers stay, as they are not AI output). They decide normally. No reason is asked for disagreeing with an AI they cannot see, and it is not counted as an override.
+- **Silent recording:** with each decision, the AI's suggestion and per-service view (`human_reviews.ai_snapshot`, `shadow_mode = true`), where the person differed from it, and the timings.
+- **No fast-tracking:** nothing goes to the Fast Lane in shadow mode.
+
+**Shadow results** (team leads) shows agreement, "AI would have approved, reviewer rejected" (the warning sign for false approvals, with a 95% range), "AI would have rejected, reviewer approved", how often the AI couldn't decide, agreement per service, AI vs reviewer time, and each disagreement linked to the location. Reviewers are not ground truth: a disagreement is a case to examine (and possibly add to the evaluation set), not a proven AI error.
+
 ## Feedback loop (PRD §57)
 
 Reviewer overrides → `feedback` table and the Feedback page → a team lead turns relevant locations into examples → second lead approves → evaluation → review → business approval → deployment. Production behaviour never changes automatically from feedback or from evaluation results.

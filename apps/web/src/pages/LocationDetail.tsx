@@ -159,8 +159,19 @@ export function LocationDetailPage() {
         </section>
       )}
 
+      {d.aiHidden ? (
+        <section style={{ display: "grid", gap: 8 }}>
+          <h2>AI assessment</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            Shadow mode: the AI analysed this location, but its result is withheld {isLead(user) ? "until a decision is made" : "from reviewers"} so it can be compared with the human decision.
+          </p>
+        </section>
+      ) : (
       <section style={{ display: "grid", gap: 8 }}>
-        <h2>AI assessment {ev.runNumber ? `(run ${ev.runNumber})` : ""}</h2>
+        <h2>
+          AI assessment {ev.runNumber ? `(run ${ev.runNumber})` : ""}
+          {d.shadow && <span className="pill" style={{ marginLeft: 8 }}>shadow mode</span>}
+        </h2>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <RiskTag level={ev.risk?.level ?? null} />
           <span>{ev.recommendation ? RECOMMENDATION_LABEL[ev.recommendation.value] : "No AI assessment"}</span>
@@ -179,6 +190,7 @@ export function LocationDetailPage() {
           </tbody>
         </table>
       </section>
+      )}
 
       <section style={{ display: "grid", gap: 8 }}>
         <h2>Decisions</h2>

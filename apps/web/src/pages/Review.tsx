@@ -115,6 +115,8 @@ export function ReviewPage() {
   if (!detail || !ev) return <div className="page muted">Loading location…</div>;
 
   const loc = detail.location;
+  const hidden = !!ev.aiHidden;
+  const view: Tab = hidden ? "all" : tab;
   const decidable = loc.status === "HUMAN_REVIEW" || (loc.status === "ESCALATED" && isLead(user));
   const bundleItems: ViewerItem[] = (ev.bundle?.entries ?? []).map((e) => ({
     imageId: e.imageId,
@@ -149,7 +151,22 @@ export function ReviewPage() {
 
       <div className="review-body">
         <aside className="ledger" aria-label="AI assessment">
-          {ev.recommendation ? (
+          {hidden ? (
+            <>
+              <div className="recommend">
+                <strong>Decide from the photos</strong>
+                <span>AI suggestions are switched off for this location while the AI is being trialled in the background. Check each required service in the photos.</span>
+              </div>
+              <section style={{ display: "grid", gap: 8 }}>
+                <h2>Required services</h2>
+                <ul className="factors">
+                  {(ev.requiredServices ?? []).map((s) => (
+                    <li key={s.service}>{s.displayName}</li>
+                  ))}
+                </ul>
+              </section>
+            </>
+          ) : ev.recommendation ? (
             <div className={`recommend ${ev.recommendation.value === "RECOMMEND_APPROVE" ? "approve" : ev.recommendation.value === "RECOMMEND_REJECT" ? "reject" : ""}`}>
               <strong>{RECOMMENDATION_LABEL[ev.recommendation.value] ?? ev.recommendation.value}</strong>
               <span>{ev.recommendation.explanation}</span>
@@ -164,7 +181,7 @@ export function ReviewPage() {
             </div>
           )}
 
-          {ev.risk && ev.risk.factors.length > 0 && (
+          {!hidden && ev.risk && ev.risk.factors.length > 0 && (
             <section>
               <h2>Why it needs attention</h2>
               <ul className="factors">
@@ -175,30 +192,36 @@ export function ReviewPage() {
             </section>
           )}
 
+          {!hidden && (
           <section style={{ display: "grid", gap: 14 }}>
             <h2>Required services</h2>
             {ev.services.map((s) => (
               <ServiceLedger key={s.service} s={s} onOpen={(imageId) => openViewer(bundleItems.length ? bundleItems : allItems, imageId)} />
             ))}
           </section>
+          )}
           {notes.length > 0 && <TeamNotes notes={notes} />}
           {ev.thresholdsProvisional && <p className="muted" style={{ fontSize: 12, margin: 0 }}>Thresholds are provisional until validated on real data.</p>}
         </aside>
 
         <section className="evidence" aria-label="Evidence">
           <div className="tabs" role="tablist">
+            {!hidden && (
+              <>
             <button role="tab" aria-selected={tab === "bundle"} onClick={() => setTab("bundle")}>
               Strongest evidence ({ev.bundle?.entries.length ?? 0})
             </button>
             <button role="tab" aria-selected={tab === "pairs"} onClick={() => setTab("pairs")}>
               Before / after ({confirmedPairs.length})
             </button>
-            <button role="tab" aria-selected={tab === "all"} onClick={() => setTab("all")}>
+              </>
+            )}
+            <button role="tab" aria-selected={view === "all"} onClick={() => setTab("all")}>
               All photos ({images.length})
             </button>
           </div>
 
-          {tab === "bundle" &&
+          {view === "bundle" &&
             (bundleItems.length ? (
               <div className="grid">
                 {(ev.bundle?.entries ?? []).map((e) => {
@@ -219,14 +242,14 @@ export function ReviewPage() {
               <p className="muted">No photo counts as evidence for the required services. Check “All photos”.</p>
             ))}
 
-          {tab === "pairs" &&
+          {view === "pairs" &&
             (confirmedPairs.length ? (
               confirmedPairs.map((p) => <PairCard key={p.id} p={p} locationId={loc.id} />)
             ) : (
               <p className="muted">No before/after pair was confirmed for this location. {(ev.pairs ?? []).length > 0 && `${ev.pairs!.length} candidate pair(s) showed different areas.`}</p>
             ))}
 
-          {tab === "all" && (
+          {view === "all" && (
             <div className="grid">
               {images.map((i) => (
                 <button

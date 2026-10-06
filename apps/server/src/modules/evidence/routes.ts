@@ -10,13 +10,16 @@ import {
   imagePairs,
   images,
   locations,
+  locationServices,
   processingRuns,
   riskAssessments,
   serviceAssessments,
+  services,
 } from "../../db/schema";
 import { band } from "../../domain/evidence";
 import type { ValidatedPairComparison } from "../../domain/observations";
 import { requireUser } from "../../http/authPlugin";
+import { aiHiddenFor, locationShadowState } from "../../services/shadow";
 import type { AppContext } from "../../http/context";
 
 const params = z.object({ id: z.string().uuid() });
@@ -38,6 +41,17 @@ export async function evidenceRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!loc) return reply.code(404).send({ error: "NOT_FOUND" });
     const runId = q.data.runId ?? loc.currentRunId;
     if (!runId) return { runId: null, services: [] };
+    const state = await locationShadowState(ctx.db, p.data.id);
+    if (state && aiHiddenFor(req.user!.role, state.shadow, state.status)) {
+      // Shadow mode: the person deciding works from the photos alone (PRD §89).
+      const required = await ctx.db
+        .select({ service: locationServices.serviceCode, displayName: services.displayName })
+        .from(locationServices)
+        .innerJoin(services, eq(services.code, locationServices.serviceCode))
+        .where(eq(locationServices.locationId, p.data.id))
+        .orderBy(asc(locationServices.serviceCode));
+      return { runId: null, shadow: true, aiHidden: true, recommendation: null, risk: null, services: [], requiredServices: required };
+    }
     const [run] = await ctx.db
       .select({ id: processingRuns.id, runNumber: processingRuns.runNumber, status: processingRuns.status })
       .from(processingRuns)

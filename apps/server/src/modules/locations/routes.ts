@@ -14,6 +14,7 @@ import {
   verificationJobs,
 } from "../../db/schema";
 import { InvalidTransitionError } from "../../domain/locationState";
+import { AI_AUDIT_EVENTS, aiHiddenFor, aiHiddenSql } from "../../services/shadow";
 import { requireRole, requireUser } from "../../http/authPlugin";
 import type { AppContext } from "../../http/context";
 import { JOB_TYPES } from "../../pipeline/jobTypes";
@@ -53,11 +54,14 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!parsed.success) return reply.code(400).send({ error: "INVALID_REQUEST", issues: parsed.error.issues });
     const f = parsed.data;
 
+    // Shadow mode: AI fields are hidden from this user for some rows; filters and sorting on
+    // them must not reveal them either (services/shadow.ts).
+    const hidden = aiHiddenSql(req.user!.role);
     const where: SQL[] = [];
     if (f.status) where.push(eq(locations.status, f.status));
     if (f.lane) where.push(eq(locations.lane, f.lane));
-    if (f.risk) where.push(eq(locations.riskLevel, f.risk));
-    if (f.recommendation) where.push(eq(locations.aiRecommendation, f.recommendation));
+    if (f.risk) where.push(eq(locations.riskLevel, f.risk), sql`not ${hidden}`);
+    if (f.recommendation) where.push(eq(locations.aiRecommendation, f.recommendation), sql`not ${hidden}`);
     if (f.client) where.push(eq(clients.code, f.client));
     if (f.receivedFrom) where.push(gte(locations.receivedAt, f.receivedFrom));
     if (f.receivedTo) where.push(lte(locations.receivedAt, f.receivedTo));
@@ -92,13 +96,15 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
         currentRunId: locations.currentRunId,
         services: sql<string[]>`coalesce((select array_agg(ls.service_code order by ls.service_code) from location_services ls where ls.location_id = ${locations.id}), '{}')`,
         imageCount: sql<number>`(select count(*)::int from images i where i.location_id = ${locations.id})`,
+        aiHidden: sql<boolean>`${hidden}`,
       })
       .from(locations)
       .innerJoin(clients, eq(clients.id, locations.clientId))
+      .leftJoin(processingRuns, eq(processingRuns.id, locations.currentRunId))
       .where(condition)
       .orderBy(
         ...(f.sort === "risk"
-          ? [sql`case ${locations.riskLevel} when 'HIGH' then 0 when 'MEDIUM' then 1 when 'LOW' then 2 else 3 end`, asc(locations.receivedAt)]
+          ? [sql`case when ${hidden} then 3 else case ${locations.riskLevel} when 'HIGH' then 0 when 'MEDIUM' then 1 when 'LOW' then 2 else 3 end end`, asc(locations.receivedAt)]
           : [f.sort === "oldest" ? asc(locations.receivedAt) : desc(locations.receivedAt)]),
       )
       .limit(f.limit)
@@ -108,9 +114,11 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
       .select({ total: count() })
       .from(locations)
       .innerJoin(clients, eq(clients.id, locations.clientId))
+      .leftJoin(processingRuns, eq(processingRuns.id, locations.currentRunId))
       .where(condition);
 
-    return { items: rows, total, limit: f.limit, offset: f.offset };
+    const items = rows.map((r) => (r.aiHidden ? { ...r, riskLevel: null, aiRecommendation: null } : r));
+    return { items, total, limit: f.limit, offset: f.offset };
   });
 
   app.get("/api/locations/:id", { preHandler: requireUser }, async (req, reply) => {
@@ -195,7 +203,24 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
         .orderBy(desc(systemErrors.occurredAt)),
     ]);
 
-    return { location: loc, services, images: imgs, runs, audit, openErrors };
+    const [shadowRun] = loc.currentRunId
+      ? await ctx.db.select({ shadow: processingRuns.shadowMode }).from(processingRuns).where(eq(processingRuns.id, loc.currentRunId))
+      : [];
+    const shadow = shadowRun?.shadow ?? false;
+    const aiHidden = aiHiddenFor(req.user!.role, shadow, loc.status);
+    if (aiHidden) {
+      return {
+        location: { ...loc, riskLevel: null, aiRecommendation: null },
+        services,
+        images: imgs,
+        runs,
+        audit: audit.map((a) => (AI_AUDIT_EVENTS.has(a.eventType) ? { ...a, data: {} } : a)),
+        openErrors,
+        shadow,
+        aiHidden,
+      };
+    }
+    return { location: loc, services, images: imgs, runs, audit, openErrors, shadow, aiHidden };
   });
 
   app.post("/api/locations/:id/reprocess", { preHandler: requireRole("TEAM_LEAD") }, async (req, reply) => {
@@ -289,14 +314,16 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
 
   /** Counts by status and lane — the precursor of the Phase 12 dashboard. */
   app.get("/api/queue/summary", { preHandler: requireUser }, async () => {
+    // Risk counts exclude shadow-mode locations (their AI result is hidden while undecided).
     const [byStatus, byLane, byRisk, jobs, [oldest]] = await Promise.all([
       ctx.db.select({ status: locations.status, n: count() }).from(locations).groupBy(locations.status),
       ctx.db.select({ lane: locations.lane, n: count() }).from(locations).groupBy(locations.lane),
       ctx.db
-        .select({ risk: locations.riskLevel, n: count() })
+        .select({ risk: sql<string | null>`case when coalesce(${processingRuns.shadowMode}, false) then null else ${locations.riskLevel} end`, n: count() })
         .from(locations)
+        .leftJoin(processingRuns, eq(processingRuns.id, locations.currentRunId))
         .where(inArray(locations.status, ["HUMAN_REVIEW", "AI_REVIEW_READY", "ESCALATED"]))
-        .groupBy(locations.riskLevel),
+        .groupBy(sql`1`),
       ctx.db.select({ status: verificationJobs.status, n: count() }).from(verificationJobs).groupBy(verificationJobs.status),
       ctx.db
         .select({ receivedAt: sql<Date | null>`min(${locations.receivedAt})` })

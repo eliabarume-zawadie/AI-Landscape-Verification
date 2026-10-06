@@ -49,7 +49,7 @@ export function localToday(timezone: string, now = new Date()): string {
 }
 
 /** [from, to) instants for inclusive local dates in the given timezone. */
-async function bounds(db: Db, f: DashboardFilter, tz: string): Promise<{ start: Date; end: Date }> {
+export async function bounds(db: Db, f: Pick<DashboardFilter, "from" | "to">, tz: string): Promise<{ start: Date; end: Date }> {
   const res = (await db.execute(
     sql`select ((${f.from}::date)::timestamp at time zone ${tz}) as "start", (((${f.to}::date) + 1)::timestamp at time zone ${tz}) as "end"`,
   )) as unknown as { rows: { start: string | Date; end: string | Date }[] };

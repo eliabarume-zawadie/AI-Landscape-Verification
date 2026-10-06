@@ -87,6 +87,9 @@ export interface PairView {
 
 export interface EvidenceResponse {
   runId: string | null;
+  /** Shadow mode: the AI result is withheld from this user while the location is undecided. */
+  aiHidden?: boolean;
+  requiredServices?: { service: string; displayName: string }[];
   runNumber?: number;
   thresholdsProvisional?: boolean;
   recommendation: { value: string; explanation: string; lane: string } | null;
@@ -134,6 +137,8 @@ export interface LocationDetail {
   runs: { id: string; runNumber: number; status: string; reason: string; startedAt: string; completedAt: string | null; visionModel: string | null; promptVersion: string | null }[];
   audit: { id: number; occurredAt: string; eventType: string; actorType: string; actorName: string | null; data: Record<string, unknown> }[];
   openErrors: { id: string; category: string; message: string; occurredAt: string }[];
+  shadow?: boolean;
+  aiHidden?: boolean;
 }
 
 export interface KnowledgeNote {

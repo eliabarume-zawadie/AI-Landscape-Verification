@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.14.0] — Phase 14: Shadow mode — 2026-10-06
+
+### Added
+- **Shadow mode** (`SHADOW_MODE=true`, PRD §89 and rollout stage 2): the AI analyses live locations without influencing decisions.
+  - **Hidden at the server:** the AI suggestion, risk, service verdicts, explanations, evidence ranking and bundle, before/after notes, and AI audit details are withheld from the people deciding. Reviewers never see them; team leads see them only after the decision. List filters and sorting by risk or suggestion can't reveal them.
+  - **Per location:** a location follows the mode of its current processing run, so switching the setting never exposes the AI mid-review.
+  - **Review screen:** "Decide from the photos", with the required services and all photos. No reason is required for disagreeing with an AI the reviewer can't see, and it doesn't count as an override.
+  - **Silent recording:** with each decision, the AI suggestion and per-service view, where the person differed, and the timings. Nothing is fast-tracked.
+- **Shadow results page** (team leads):
+  - **Comparison:** agreement, "AI would have approved, reviewer rejected" (with 95% range), "AI would have rejected, reviewer approved", and how often the AI couldn't decide.
+  - **Detail:** agreement per service, AI vs reviewer time, and a list of disagreements linked to their locations. Small samples show "Not enough data".
+- The location page says the AI result is withheld, or marks the assessment as shadow mode once visible.
+
+### Verified
+- **Tests:** 6 new integration tests covering shadow runs and no Fast Lane, no AI output in any endpoint for reviewers or for undecided leads (including filters, audit data and queue summary), no reason required, the AI view still recorded, leads comparing after the decision, and the results report. 456 tests in total.
+- **Browser:**
+  - **Reviewer:** sees only photos and required services, no AI wording, and rejects without a reason.
+  - **Team lead:** sees the disagreement on Shadow results.
+
 ## [0.13.0] — Phase 13: Evaluation set and evaluation runner — 2026-10-06
 
 ### Added

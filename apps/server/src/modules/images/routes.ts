@@ -4,6 +4,7 @@ import { z } from "zod";
 import { recordAudit } from "../../audit/audit";
 import { evidenceBundleItems, imageAnalysis, images, locations, processingRuns } from "../../db/schema";
 import { requireUser } from "../../http/authPlugin";
+import { aiHiddenFor, locationShadowState } from "../../services/shadow";
 import { openImage } from "../../pipeline/imageDecode";
 import type { AppContext } from "../../http/context";
 
@@ -37,6 +38,10 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
     if (!loc) return reply.code(404).send({ error: "NOT_FOUND" });
 
     const runId = q.data.runId ?? loc.currentRunId;
+    const state = await locationShadowState(ctx.db, loc.id);
+    // Shadow mode: evidence ranking and bundle membership are AI output; photo quality,
+    // duplicates and before/after stage are not (pixel checks and metadata).
+    const aiHidden = !!state && aiHiddenFor(req.user!.role, state.shadow, state.status);
     if (q.data.runId) {
       const [run] = await ctx.db
         .select({ id: processingRuns.id })
@@ -74,11 +79,11 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
       .leftJoin(imageAnalysis, and(eq(imageAnalysis.imageId, images.id), eq(imageAnalysis.runId, runId ?? images.id)))
       .where(eq(images.locationId, loc.id))
       .orderBy(asc(images.ordinal), asc(images.externalRef));
-    if (q.data.order === "evidence") {
+    if (q.data.order === "evidence" && !aiHidden) {
       rows.sort((a, b) => (a.evidenceRank ?? Number.MAX_SAFE_INTEGER) - (b.evidenceRank ?? Number.MAX_SAFE_INTEGER));
     }
     const bundled = new Set(
-      runId
+      runId && !aiHidden
         ? (await ctx.db.select({ id: evidenceBundleItems.imageId }).from(evidenceBundleItems).where(eq(evidenceBundleItems.runId, runId))).map((r) => r.id)
         : [],
     );
@@ -99,8 +104,8 @@ export async function imageRoutes(app: FastifyInstance, ctx: AppContext) {
               duplicateKind: r.duplicateKind,
               stage: r.stage,
               stageCertainty: r.stageCertainty,
-              analysisStatus: r.analysisStatus,
-              evidenceRank: r.evidenceRank,
+              analysisStatus: aiHidden ? null : r.analysisStatus,
+              evidenceRank: aiHidden ? null : r.evidenceRank,
             },
     }));
     const analysed = items.filter((i) => i.analysis);

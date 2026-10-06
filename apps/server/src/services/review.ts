@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { AiRecommendation, OverrideReasonCode, ReviewDecision, Role, ServiceAssessmentStatus } from "@alvip/shared";
 import { recordAudit } from "../audit/audit";
 import type { Db } from "../db/client";
-import { auditEvents, feedback, humanReviews, images, locations, serviceAssessments } from "../db/schema";
+import { auditEvents, feedback, humanReviews, images, locations, processingRuns, serviceAssessments } from "../db/schema";
 import type { QueueProvider } from "../integrations/queue/QueueProvider";
 import { hasRole, type AuthUser } from "./auth";
 import { queueDecisionSync } from "./netsuiteSync";
@@ -128,7 +128,13 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
     }
   }
 
-  const conflictDetails = findConflictDetails(input.decision, ai, input.serviceDecisions);
+  // Shadow mode (PRD §89): the person decided without seeing the AI, so disagreeing is not
+  // "going against the AI": no reason is demanded and it is not an override. The AI view is
+  // still recorded (aiSnapshot) and the disagreement kept for the shadow results.
+  const [runRow] = ai.runId ? await db.select({ shadow: processingRuns.shadowMode }).from(processingRuns).where(eq(processingRuns.id, ai.runId)) : [];
+  const shadow = runRow?.shadow ?? false;
+  const shadowDisagreements = shadow ? findConflicts(input.decision, ai, input.serviceDecisions) : [];
+  const conflictDetails = shadow ? [] : findConflictDetails(input.decision, ai, input.serviceDecisions);
   const conflicts = conflictDetails.map((c) => c.message);
   if (conflicts.length > 0 && !input.reasonCode) {
     throw new ReviewValidationError(`A reason is required: ${conflicts.join("; ")}`, "REASON_REQUIRED");
@@ -186,7 +192,8 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
         decision: input.decision,
         serviceDecisions: input.serviceDecisions ?? {},
         aiRecommendation: ai.recommendation,
-        aiSnapshot: { ...ai, lane: loc.lane, batch: input.batch ?? false },
+        aiSnapshot: { ...ai, lane: loc.lane, batch: input.batch ?? false, ...(shadow ? { shadowDisagreements } : {}) },
+        shadowMode: shadow,
         isOverride: conflicts.length > 0,
         reasonCode: input.reasonCode ?? null,
         reasonText: input.reasonText?.trim() || null,
@@ -233,6 +240,7 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
         reviewSeconds: input.openedAt ? Math.round((Date.now() - input.openedAt.getTime()) / 1000) : null,
         batch: input.batch ?? false,
         feedbackRows,
+        shadowMode: shadow,
       },
     });
     if (conflicts.length > 0) {
