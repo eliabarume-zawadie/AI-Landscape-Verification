@@ -74,6 +74,10 @@ const envSchema = z.object({
   JOB_LEASE_SEC: z.coerce.number().int().min(10).default(300),
   /** How often to pull the NetSuite queue. 0 disables automatic polling. */
   NETSUITE_POLL_INTERVAL_SEC: z.coerce.number().int().min(0).default(60),
+  /** Attempts for a NetSuite write before the location goes to the Exception Lane (transient errors only; others stop at once). */
+  NETSUITE_SYNC_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(50).default(8),
+  /** How often to queue decided locations that have no NetSuite sync yet. 0 disables. */
+  NETSUITE_SYNC_SWEEP_INTERVAL_SEC: z.coerce.number().int().min(0).default(60),
 
   /** Private image storage root (local filesystem driver). */
   STORAGE_DIR: z.string().default(path.join(dataDir, "images")),

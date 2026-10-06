@@ -52,7 +52,7 @@ export class MockNetSuiteAdapter implements NetSuiteAdapter {
       clientCode: s.clientCode,
       name: s.name,
       serviceDate: new Date(s.serviceDate),
-      existingVerificationStatus: null,
+      existingVerificationStatus: this.latestDecision(externalId),
       raw: { mock: true, demoCase: s.demoCase ?? null, title: s.title },
     };
   }
@@ -83,6 +83,21 @@ export class MockNetSuiteAdapter implements NetSuiteAdapter {
     if (this.notes.has(note.idempotencyKey)) return { alreadyApplied: true };
     this.notes.set(note.idempotencyKey, { externalId, note });
     return { alreadyApplied: false, remoteRef: `MOCK-NOTE-${this.notes.size}` };
+  }
+
+  /** What NetSuite shows now: the last verification written for the record. */
+  private latestDecision(externalId: string): string | null {
+    let last: string | null = null;
+    for (const w of this.verificationWrites.values()) if (w.externalId === externalId) last = w.write.decision;
+    return last;
+  }
+
+  /** Simulate someone recording a decision in NetSuite directly (tests, demos). */
+  recordDecisionOutsideAlvip(externalId: string, decision: "APPROVE" | "REJECT"): void {
+    this.verificationWrites.set(`outside:${externalId}:${this.verificationWrites.size}`, {
+      externalId,
+      write: { idempotencyKey: "outside", decision, reviewerName: "NetSuite user", decidedAt: this.now(), processingRunId: null, serviceDecisions: {} },
+    });
   }
 
   /** Lookup used by the mock image/vision providers (Phases 3–4). */

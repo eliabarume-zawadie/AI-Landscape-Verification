@@ -1,9 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, ApiError, type EvidenceResponse, type LocationDetail } from "../api";
+import { api, ApiError, type EvidenceResponse, type LocationDetail, type NetSuiteWrite } from "../api";
 import { isLead, useAuth } from "../auth";
 import { RiskTag, StatusTag } from "../components/bits";
-import { DECISION_LABEL, EVENT_LABEL, eventDetail, humanize, LOCATION_STATUS_LABEL, REASON_LABEL, RECOMMENDATION_LABEL, STATUS_LABEL } from "../labels";
+import {
+  DECISION_LABEL,
+  ERROR_CATEGORY_HINT,
+  EVENT_LABEL,
+  eventDetail,
+  humanize,
+  LOCATION_STATUS_LABEL,
+  REASON_LABEL,
+  RECOMMENDATION_LABEL,
+  STATUS_LABEL,
+  WRITE_LABEL,
+  WRITE_STATUS_LABEL,
+} from "../labels";
 
 interface ReviewRow {
   id: string;
@@ -32,6 +44,7 @@ export function LocationDetailPage() {
   const [d, setD] = useState<LocationDetail | null>(null);
   const [ev, setEv] = useState<EvidenceResponse | null>(null);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
+  const [writes, setWrites] = useState<NetSuiteWrite[]>([]);
   const [reason, setReason] = useState<string>("TECHNICAL_ERROR");
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -40,10 +53,12 @@ export function LocationDetailPage() {
       api<LocationDetail>(`/api/locations/${id}`),
       api<EvidenceResponse>(`/api/locations/${id}/evidence`),
       api<{ reviews: ReviewRow[] }>(`/api/locations/${id}/reviews`),
-    ]).then(([a, b, c]) => {
+      api<{ writes: NetSuiteWrite[] }>(`/api/locations/${id}/netsuite`),
+    ]).then(([a, b, c, n]) => {
       setD(a);
       setEv(b);
       setReviews(c.reviews);
+      setWrites(n.writes);
     });
   useEffect(() => {
     load();
@@ -64,6 +79,8 @@ export function LocationDetailPage() {
   const loc = d.location;
   const awaiting = loc.status === "HUMAN_REVIEW" || loc.status === "ESCALATED";
   const isException = ["IMAGE_ERROR", "AI_ERROR", "INTEGRATION_ERROR"].includes(loc.status);
+  // A decision waiting to reach NetSuite must land first (server rule, domain/locationState.ts).
+  const canReprocess = !["NEW", "DOWNLOADING", "ANALYZING", "EVIDENCE_BUILDING", "APPROVED", "REJECTED", "SYNCING", "NETSUITE_ERROR", "SYNCED_TO_NETSUITE"].includes(loc.status);
 
   return (
     <div className="page" style={{ display: "grid", gap: 20, alignContent: "start", maxWidth: 1100 }}>
@@ -84,12 +101,17 @@ export function LocationDetailPage() {
             Review this location
           </Link>
         )}
+        {isLead(user) && loc.status === "NETSUITE_ERROR" && (
+          <button className="btn primary" onClick={() => act(`/api/locations/${loc.id}/netsuite/retry`, {}, "Sending to NetSuite again.")}>
+            Retry sending to NetSuite
+          </button>
+        )}
         {isLead(user) && isException && (
           <button className="btn" onClick={() => act(`/api/locations/${loc.id}/manual-review`, {}, "Sent to manual review.")}>
             Send to manual review
           </button>
         )}
-        {isLead(user) && (
+        {isLead(user) && canReprocess && (
           <span style={{ display: "inline-flex", gap: 6 }}>
             <select aria-label="Reprocess reason" value={reason} onChange={(e) => setReason(e.target.value)}>
               {REPROCESS.map(([k, v]) => (
@@ -175,6 +197,39 @@ export function LocationDetailPage() {
           </table>
         )}
       </section>
+
+      {writes.length > 0 && (
+        <section style={{ display: "grid", gap: 8 }}>
+          <h2>NetSuite</h2>
+          {loc.status === "NETSUITE_ERROR" && (
+            <p className="error" style={{ margin: 0 }}>
+              The decision is saved in ALVIP but hasn’t reached NetSuite.{" "}
+              {ERROR_CATEGORY_HINT[writes.find((w) => w.lastErrorCategory)?.lastErrorCategory ?? ""] ?? ""}
+              {isLead(user) ? " Fix the cause, then retry." : " A team lead can retry once the cause is fixed."}
+            </p>
+          )}
+          <table className="list">
+            <tbody>
+              {writes.map((w) => (
+                <tr key={w.id}>
+                  <td style={{ width: 170 }}>{WRITE_LABEL[w.operation] ?? w.operation}</td>
+                  <td style={{ width: 200 }}>
+                    <span className={`sync sync-${w.status.toLowerCase()}`}>{WRITE_STATUS_LABEL[w.status] ?? w.status}</span>
+                  </td>
+                  <td className="muted" style={{ fontSize: 13 }}>
+                    {w.syncedAt
+                      ? `${new Date(w.syncedAt).toLocaleString()}${w.remoteRef ? ` · NetSuite ref ${w.remoteRef}` : ""}${w.alreadyApplied ? " · was already in NetSuite" : ""}`
+                      : w.lastError ?? "Queued"}
+                  </td>
+                  <td className="muted" style={{ width: 110, fontSize: 13 }}>
+                    {w.attempts} attempt{w.attempts === 1 ? "" : "s"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section style={{ display: "grid", gap: 8 }}>
         <h2>Processing runs</h2>

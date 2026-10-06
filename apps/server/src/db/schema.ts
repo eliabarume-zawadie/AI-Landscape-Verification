@@ -569,11 +569,17 @@ export const netsuiteSyncOutbox = pgTable(
     lastError: text("last_error"),
     lastErrorCategory: errorCategoryEnum("last_error_category"),
     createdAt: createdAt(),
+    lastAttemptAt: ts("last_attempt_at"),
     syncedAt: ts("synced_at"),
+    /** NetSuite's reference for the write, when it returns one. */
+    remoteRef: text("remote_ref"),
+    /** NetSuite already had this write (idempotent replay after a crash or retry). */
+    alreadyApplied: boolean("already_applied"),
   },
   (t) => [
     uniqueIndex("netsuite_sync_outbox_idempotency_uq").on(t.idempotencyKey),
     index("netsuite_sync_outbox_due_idx").on(t.status, t.nextAttemptAt),
+    index("netsuite_sync_outbox_location_idx").on(t.locationId, t.createdAt),
   ],
 );
 

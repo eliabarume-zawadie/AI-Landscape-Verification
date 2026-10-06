@@ -131,6 +131,15 @@ export function eventDetail(eventType: string, data: Record<string, unknown>): s
       return `${REASON_LABEL[String(d.reasonCode)] ?? d.reasonCode}${d.reasonText ? ` — “${d.reasonText}”` : ""}`;
     case "REPROCESS_REQUESTED":
       return d.reason ? humanize(String(d.reason)) : null;
+    case "NETSUITE_SYNC_ATTEMPTED":
+    case "NETSUITE_SYNC_SUCCEEDED":
+      return [d.operation === "ADD_NOTE" ? "Reviewer note" : "Verification result", d.remoteRef ? `ref ${d.remoteRef}` : null, d.alreadyApplied ? "already there" : null]
+        .filter(Boolean)
+        .join(" · ");
+    case "NETSUITE_SYNC_FAILED":
+      return `${humanize(String(d.category))} · ${d.outcome === "RETRY" ? `will retry (attempt ${d.attempt} of ${d.maxAttempts})` : "stopped"}`;
+    case "ERROR":
+      return d.category ? `${humanize(String(d.category))}${d.message ? `: ${d.message}` : ""}` : null;
     case "RISK_CALCULATED":
       return d.level ? `${humanize(String(d.level))} risk` : null;
     default:
@@ -144,4 +153,24 @@ export const EVENT_LABEL: Record<string, string> = {
   REVIEW_OPENED: "Opened for review",
   EVIDENCE_VIEWED: "Viewed a photo full size",
   LOCATION_STATUS_CHANGED: "Status changed",
+  NETSUITE_SYNC_ATTEMPTED: "Sending to NetSuite",
+  NETSUITE_SYNC_SUCCEEDED: "NetSuite updated",
+  NETSUITE_SYNC_FAILED: "NetSuite update failed",
+  NETSUITE_SYNC_RETRY_REQUESTED: "NetSuite retry requested",
+  ERROR: "Problem recorded",
+};
+
+export const WRITE_LABEL: Record<string, string> = { UPDATE_VERIFICATION: "Verification result", ADD_NOTE: "Reviewer note" };
+export const WRITE_STATUS_LABEL: Record<string, string> = {
+  PENDING: "Waiting to send",
+  IN_FLIGHT: "Sending",
+  SUCCEEDED: "Sent",
+  FAILED: "Failed — will retry",
+  DEAD: "Stopped — needs attention",
+};
+export const ERROR_CATEGORY_HINT: Record<string, string> = {
+  TRANSIENT: "NetSuite was unreachable or busy.",
+  AUTHENTICATION: "NetSuite refused ALVIP's credentials. An admin must fix the integration settings.",
+  NETSUITE_VALIDATION: "NetSuite rejected the update, or the record changed in NetSuite. Check the record there.",
+  CONFIGURATION: "The NetSuite integration is not configured correctly.",
 };

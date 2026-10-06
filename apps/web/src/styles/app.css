@@ -811,3 +811,26 @@ label.check {
   padding-left: 18px;
   font-size: 13px;
 }
+
+/* ---------- Phase 11: NetSuite write status ---------- */
+.sync {
+  display: inline-block;
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: var(--r);
+  border: 1px solid var(--rule);
+}
+.sync-succeeded {
+  background: var(--turf-wash);
+  border-color: var(--turf);
+}
+.sync-failed,
+.sync-in_flight,
+.sync-pending {
+  background: var(--ochre-wash);
+  border-color: var(--ochre);
+}
+.sync-dead {
+  background: var(--brick-wash);
+  border-color: var(--brick);
+}

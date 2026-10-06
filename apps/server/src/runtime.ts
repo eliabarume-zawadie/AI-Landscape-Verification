@@ -7,9 +7,10 @@ import type { JobHandler, Logger } from "./pipeline/jobHandler";
 import { processLocationHandler } from "./pipeline/processLocation";
 import { Worker, type PeriodicTask } from "./pipeline/worker";
 import { ingestQueue } from "./services/ingest";
+import { netsuiteSyncHandler, queueUnsyncedDecisions } from "./services/netsuiteSync";
 import { purgeExpiredImages } from "./services/retention";
 
-export const JOB_HANDLERS: JobHandler[] = [processLocationHandler];
+export const JOB_HANDLERS: JobHandler[] = [processLocationHandler, netsuiteSyncHandler];
 
 export interface Runtime {
   queue: QueueProvider;
@@ -38,6 +39,17 @@ export function createWorker(env: Env, db: Db, runtime: Runtime, log: Logger, op
           actor: { type: "SYSTEM", id: "netsuite-poller" },
         });
         if (summary.created > 0 || summary.fetchFailures > 0) log.info({ summary }, "netsuite ingest");
+      },
+    });
+  }
+
+  if (env.NETSUITE_SYNC_SWEEP_INTERVAL_SEC > 0) {
+    periodic.push({
+      name: "netsuite-sync-sweep",
+      intervalMs: env.NETSUITE_SYNC_SWEEP_INTERVAL_SEC * 1000,
+      run: async () => {
+        const n = await queueUnsyncedDecisions(db, runtime.queue, { maxAttempts: env.NETSUITE_SYNC_MAX_ATTEMPTS });
+        if (n > 0) log.info({ queued: n }, "queued decisions for NetSuite sync");
       },
     });
   }

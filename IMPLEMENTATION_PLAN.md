@@ -1,6 +1,6 @@
 # ALVIP — Implementation Plan
 
-**Status:** Phases 0–10 complete · Phase 11 next
+**Status:** Phases 0–11 complete · Phase 12 next
 **Source spec:** [PRD.md](PRD.md) v1.0
 **Last updated:** 2026-10-05
 
@@ -336,7 +336,7 @@ interface VisionProvider {
 | 8 | Risk engine, location recommendation, lanes (contradiction detection delivered in Phase 5) | ✅ Done (CHANGELOG 0.8.0) |
 | 9 | Reviewer workspace, location detail, search | ✅ Done (CHANGELOG 0.9.0) |
 | 10 | Overrides, feedback, knowledge base | ✅ Done (CHANGELOG 0.10.0) — notes are reviewer guidance only; not sent to the AI until evaluated (Phase 13) |
-| 11 | NetSuite outbox sync (mock; production adapter when U1–U6 are resolved) | ⏳ |
+| 11 | NetSuite outbox sync (mock; production adapter when U1–U6 are resolved) | ✅ Done (CHANGELOG 0.11.0) — against the mock adapter; production adapter still blocked on U1–U6 |
 | 12 | Dashboard & analytics (with minimum-sample suppression) | ⏳ |
 | 13 | Golden dataset + evaluation runner | ⏳ (needs U11 for real data) |
 | 14 | Shadow mode | ⏳ |

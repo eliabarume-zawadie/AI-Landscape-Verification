@@ -88,6 +88,15 @@ Roles are hierarchical: `REVIEWER` < `TEAM_LEAD` < `ADMIN`.
 | POST | `/api/knowledge/:id/revise` | TEAM_LEAD | same body; archives the old note and creates a superseding one; 409 if already archived |
 | POST | `/api/knowledge/:id/archive` | TEAM_LEAD | `{ reason }`; 409 if already archived |
 
+### Phase 11
+
+| Method | Path | Role | Notes |
+|---|---|---|---|
+| GET | `/api/locations/:id/netsuite` | REVIEWER | `{ writes: [{ operation, status, attempts, lastError, lastErrorCategory, lastAttemptAt, syncedAt, remoteRef, alreadyApplied }] }` |
+| POST | `/api/locations/:id/netsuite/retry` | TEAM_LEAD | only from `NETSUITE_ERROR` (409 otherwise); re-queues unsent writes → 202 `{ jobId }`; audited |
+
+`POST /api/locations/:id/review` with APPROVE/REJECT now also queues the NetSuite write in the same transaction (see docs/NETSUITE_INTEGRATION.md).
+
 Non-API GETs return the reviewer UI (`index.html`) when `WEB_DIST_DIR` exists.
 
 ## Planned (PRD §76)

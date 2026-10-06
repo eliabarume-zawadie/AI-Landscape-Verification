@@ -29,7 +29,11 @@ export interface NetSuiteLocation {
   clientCode: string;
   name?: string;
   serviceDate?: Date;
-  /** Verification status currently recorded in NetSuite, if any. */
+  /**
+   * Verification decision currently recorded in NetSuite, mapped by the adapter to ALVIP
+   * terms ("APPROVE" | "REJECT"), or null when none. Read before every write so a decision
+   * made in NetSuite directly is never overwritten (PRD §39).
+   */
   existingVerificationStatus?: string | null;
   raw?: unknown;
 }

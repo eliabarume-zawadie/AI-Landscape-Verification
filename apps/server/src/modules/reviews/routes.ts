@@ -52,7 +52,7 @@ export async function reviewRoutes(app: FastifyInstance, ctx: AppContext) {
     const body = reviewBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: "INVALID_REQUEST", issues: body.error.issues });
     try {
-      const r = await submitReview(ctx.db, { ...req.user!, ip: req.ip }, { locationId: p.data.id, ...stripUndefined(body.data) });
+      const r = await submitReview(ctx.db, { ...req.user!, ip: req.ip }, { locationId: p.data.id, ...stripUndefined(body.data) }, reviewDeps(ctx));
       return reply.code(201).send({ reviewId: r.review.id, status: r.status, isOverride: r.review.isOverride, conflicts: r.conflicts, feedbackRows: r.feedbackRows });
     } catch (err) {
       return sendError(reply, err);
@@ -79,13 +79,15 @@ export async function reviewRoutes(app: FastifyInstance, ctx: AppContext) {
     const body = batchBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: "INVALID_REQUEST" });
     try {
-      const r = await confirmFastLane(ctx.db, { ...req.user!, ip: req.ip }, body.data.locationIds, body.data.openedAt);
+      const r = await confirmFastLane(ctx.db, { ...req.user!, ip: req.ip }, body.data.locationIds, reviewDeps(ctx), body.data.openedAt);
       return { confirmed: r.length };
     } catch (err) {
       return sendError(reply, err);
     }
   });
 }
+
+const reviewDeps = (ctx: AppContext) => ({ queue: ctx.queue, syncMaxAttempts: ctx.env.NETSUITE_SYNC_MAX_ATTEMPTS });
 
 function sendError(reply: FastifyReply, err: unknown) {
   if (err instanceof LocationNotFoundError) return reply.code(404).send({ error: "NOT_FOUND" });

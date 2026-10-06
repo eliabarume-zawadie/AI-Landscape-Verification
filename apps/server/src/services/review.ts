@@ -3,7 +3,9 @@ import type { AiRecommendation, OverrideReasonCode, ReviewDecision, Role, Servic
 import { recordAudit } from "../audit/audit";
 import type { Db } from "../db/client";
 import { auditEvents, feedback, humanReviews, images, locations, serviceAssessments } from "../db/schema";
+import type { QueueProvider } from "../integrations/queue/QueueProvider";
 import { hasRole, type AuthUser } from "./auth";
+import { queueDecisionSync } from "./netsuiteSync";
 import { LocationNotFoundError, transitionLocation } from "./locationTransitions";
 
 export class ReviewValidationError extends Error {
@@ -100,7 +102,13 @@ export function feedbackTargets(conflicts: Conflict[], relevantImageIds: string[
  * Record a human decision (PRD §24–25). Immutable review record + state transition +
  * audit, in one transaction. Approval is only possible here — never from the pipeline.
  */
-export async function submitReview(db: Db, user: AuthUser & { ip?: string }, input: ReviewInput) {
+export interface ReviewDeps {
+  queue: QueueProvider;
+  /** NETSUITE_SYNC_MAX_ATTEMPTS */
+  syncMaxAttempts: number;
+}
+
+export async function submitReview(db: Db, user: AuthUser & { ip?: string }, input: ReviewInput, deps: ReviewDeps) {
   const ai = await loadAiSnapshot(db, input.locationId);
   const [loc] = await db.select({ status: locations.status, lane: locations.lane }).from(locations).where(eq(locations.id, input.locationId));
   if (!loc) throw new LocationNotFoundError(`Location ${input.locationId} not found`);
@@ -187,6 +195,9 @@ export async function submitReview(db: Db, user: AuthUser & { ip?: string }, inp
       })
       .returning();
 
+    // NetSuite write-back (PRD §39): outbox rows + sync job commit with the decision.
+    await queueDecisionSync(tx, deps.queue, review!, { maxAttempts: deps.syncMaxAttempts });
+
     // Feedback (PRD §30): captured whenever a reason is given. Stored for evaluation only.
     let feedbackRows = 0;
     if (input.reasonCode) {
@@ -260,7 +271,7 @@ export async function openReview(db: Db, user: AuthUser & { ip?: string }, locat
  * Fast Lane batch confirmation (PRD §36, §53 level 3). Only Fast Lane locations the AI
  * recommended approving; each becomes its own human review record.
  */
-export async function confirmFastLane(db: Db, user: AuthUser & { ip?: string }, locationIds: string[], openedAt?: Date) {
+export async function confirmFastLane(db: Db, user: AuthUser & { ip?: string }, locationIds: string[], deps: ReviewDeps, openedAt?: Date) {
   const rows = await db
     .select({ id: locations.id, lane: locations.lane, status: locations.status, rec: locations.aiRecommendation })
     .from(locations)
@@ -272,7 +283,7 @@ export async function confirmFastLane(db: Db, user: AuthUser & { ip?: string }, 
   if (bad.length > 0) throw new ReviewValidationError(`Not confirmable from the Fast Lane: ${bad.join(", ")}`, "NOT_FAST_LANE");
   const results = [];
   for (const id of locationIds) {
-    results.push(await submitReview(db, user, { locationId: id, decision: "APPROVE", batch: true, ...(openedAt ? { openedAt } : {}) }));
+    results.push(await submitReview(db, user, { locationId: id, decision: "APPROVE", batch: true, ...(openedAt ? { openedAt } : {}) }, deps));
   }
   return results;
 }

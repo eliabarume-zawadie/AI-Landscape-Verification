@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.11.0] — Phase 11: NetSuite write-back — 2026-10-06
+
+### Added
+- **Decisions are written back to NetSuite** (PRD §37–39), against the mock adapter until the real NetSuite details (U1–U6) are known.
+  - Every approve or reject sends the verification result: decision, reviewer, time, processing run, and per-service decisions.
+  - When the reviewer gave a reason, a plain-text note is sent too. Escalations stay internal.
+- **Transactional outbox:**
+  - **One transaction:** the decision, its NetSuite writes and the sync job commit together, so a crash or outage can't lose a decision.
+  - **Status path:** `APPROVED/REJECTED → SYNCING → SYNCED_TO_NETSUITE → COMPLETED`.
+- **Safety:**
+  - **No duplicates:** stable idempotency keys, and a retry after a crash is recognised as already applied.
+  - **No overwrites:** the record is re-read before writing, and a decision made directly in NetSuite is never overwritten.
+  - **Retries (PRD §78):** temporary failures retry with exponential backoff up to `NETSUITE_SYNC_MAX_ATTEMPTS` (8). Authentication, validation and configuration errors stop at once and send the location to the Problems lane (`NETSUITE_ERROR`).
+- **Team lead recovery:** "Retry sending to NetSuite" on the location page (`POST /api/locations/:id/netsuite/retry`). Open problems close when the write succeeds.
+- **Sweep:** decided locations without a sync, e.g. decisions made before this release, are queued automatically (`NETSUITE_SYNC_SWEEP_INTERVAL_SEC`).
+- **Location page:**
+  - **NetSuite section:** each write's state (waiting, sending, sent with NetSuite reference, will retry, stopped), attempts, and the plain reason when it stopped.
+  - **History:** NetSuite and error events now have readable descriptions.
+  - **Reprocess:** no longer offered while a decision is on its way to NetSuite (the server already refused it).
+- Migration `0011`: outbox columns `last_attempt_at`, `remote_ref`, `already_applied`, and the audit type `NETSUITE_SYNC_RETRY_REQUESTED`.
+
+### Verified
+- **Tests:** 10 new integration tests covering atomic outbox and job, the success path and its status chain, the note on overrides, demo case 7 (three transient failures, retried, one write), a validation error stopping at once with team-lead retry, refusal to overwrite a decision made in NetSuite, crash between write and bookkeeping (no duplicate), no write on escalation, and the sweep. 425 tests in total.
+- **Browser** (fresh database):
+  - **Demo 004:** approved with a reason; verification and note sent; Completed.
+  - **Demo 007:** shows "Failed — will retry" while NetSuite fails.
+
 ## [0.10.0] — Phase 10: Overrides, feedback and team knowledge — 2026-10-05
 
 ### Added

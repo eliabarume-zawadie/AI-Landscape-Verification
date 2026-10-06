@@ -183,3 +183,18 @@ export interface FeedbackSummary {
   byReason: { key: string; n: number }[];
   byService: { key: string | null; n: number }[];
 }
+
+export interface NetSuiteWrite {
+  id: string;
+  reviewId: string | null;
+  operation: "UPDATE_VERIFICATION" | "ADD_NOTE";
+  status: "PENDING" | "IN_FLIGHT" | "SUCCEEDED" | "FAILED" | "DEAD";
+  attempts: number;
+  lastError: string | null;
+  lastErrorCategory: string | null;
+  createdAt: string;
+  lastAttemptAt: string | null;
+  syncedAt: string | null;
+  remoteRef: string | null;
+  alreadyApplied: boolean | null;
+}

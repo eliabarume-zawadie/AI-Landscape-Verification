@@ -78,6 +78,13 @@
       "when": 1791212572066,
       "tag": "0010_knowledge_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791286603963,
+      "tag": "0011_netsuite_sync",
+      "breakpoints": true
     }
   ]
 }

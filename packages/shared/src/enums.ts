@@ -139,6 +139,7 @@ export const AUDIT_EVENT_TYPES = [
   "KNOWLEDGE_NOTE_CREATED",
   "KNOWLEDGE_NOTE_ARCHIVED",
   "FEEDBACK_EXPORTED",
+  "NETSUITE_SYNC_RETRY_REQUESTED",
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 
