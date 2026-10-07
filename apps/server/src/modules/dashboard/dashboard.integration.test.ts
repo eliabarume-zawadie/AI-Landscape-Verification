@@ -17,6 +17,10 @@ const loc = async (externalId: string) => (await t.h.db.select().from(locations)
 const review = async (externalId: string, payload: Record<string, unknown>) =>
   app.inject({ method: "POST", url: `/api/locations/${(await loc(externalId)).id}/review`, headers: as("reviewer"), payload });
 const today = () => localToday("UTC");
+// Mock locations are received up to ~10 h before the test runs, so "today" alone would miss
+// some of them before 10:00 UTC. Counts use yesterday + today.
+const yesterday = () => localToday("UTC", new Date(Date.now() - 86_400_000));
+const twoDays = () => `from=${yesterday()}&to=${today()}`;
 
 beforeAll(async () => {
   t = await createHarness({
@@ -51,10 +55,11 @@ describe("GET /api/dashboard", () => {
   });
 
   it("reports today's queue, timing, AI, efficiency, cost and NetSuite figures", async () => {
-    const res = await app.inject({ url: "/api/dashboard", headers: as("lead") });
+    const todayOnly = (await app.inject({ url: "/api/dashboard", headers: as("lead") })).json();
+    expect(todayOnly.period).toMatchObject({ from: today(), to: today(), timezone: "UTC", isToday: true });
+    const res = await app.inject({ url: `/api/dashboard?${twoDays()}`, headers: as("lead") });
     expect(res.statusCode).toBe(200);
     const d = res.json();
-    expect(d.period).toMatchObject({ from: today(), to: today(), timezone: "UTC", isToday: true });
     expect(d.queue).toMatchObject({ received: 6, decided: 3, escalated: 1, completed: 3, awaitingReview: 2, waitingForNetSuite: 0 });
     expect(d.queue.aiProcessed).toBe(5); // demo 8: AI provider down → no successful run
     expect(d.queue.problems).toBe(1);
@@ -83,9 +88,9 @@ describe("GET /api/dashboard", () => {
 
   it("filters by client and service", async () => {
     const [b] = await t.h.db.select().from(clients).where(eq(clients.code, "DEMO_CLIENT_B"));
-    const none = (await app.inject({ url: `/api/dashboard?client=${b!.id}`, headers: as("lead") })).json();
+    const none = (await app.inject({ url: `/api/dashboard?${twoDays()}&client=${b!.id}`, headers: as("lead") })).json();
     expect(none.queue).toMatchObject({ received: 0, decided: 0 });
-    const weeds = (await app.inject({ url: "/api/dashboard?service=weed_removal", headers: as("lead") })).json();
+    const weeds = (await app.inject({ url: `/api/dashboard?${twoDays()}&service=weed_removal`, headers: as("lead") })).json();
     expect(weeds.queue.received).toBeLessThan(6);
     expect(weeds.queue.received).toBeGreaterThan(0);
   });

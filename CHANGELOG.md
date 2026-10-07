@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.15.1] — Final end-to-end review — 2026-10-07
+
+### Review
+- **Clean checkout:** fresh clone outside OneDrive. Install, typecheck and UI build succeed with nothing from the developer's machine.
+- **Secrets:** none in the git history. Only `.env.example` is tracked.
+- **Dependencies:** 0 known vulnerabilities in production dependencies. 4 moderate advisories are confined to the migration generator's bundled esbuild dev server (`drizzle-kit`, development only, never started); left as is because the suggested fix downgrades drizzle-kit.
+- **MVP definition of done (PRD §91):** every item exercised end to end on a fresh database in a real browser, as reviewer, team lead and admin. Also covered: feedback, knowledge, Fast Lane with QC sampling, a sandboxed evaluation and a rollout change. No browser errors or server errors.
+
+### Added
+- **Route security test:** discovers every API route from the running app and asserts that each one refuses requests without a session, and that every team-lead/admin route refuses a reviewer. A new route without an access check now fails the build.
+- **Docs:** the README is rewritten for the finished system (status, Windows commands, roles, where to find what). `docs/DEPLOYMENT.md` gains a backup and recovery strategy and a PRD §92 production-readiness checklist with honest status.
+
+### Fixed
+- The dashboard integration test depended on the time of day: mock locations are received up to 10 hours earlier, so between midnight and 10:00 UTC some fell on "yesterday". It now uses a two-day window, and still checks that the default period is today.
+
 ## [0.15.0] — Phase 15: Controlled rollout and quality checks — 2026-10-06
 
 ### Added
