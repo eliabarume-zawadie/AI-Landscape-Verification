@@ -24,7 +24,7 @@ function RateTile({ label, p, note, compare }: { label: string; p: Proportion; n
       <span className="tile-value">{pctOf(p)}</span>
       <span className="tile-note">
         {p.n ? `${p.k} of ${p.n} ${note}` : `no ${note}`}
-        {range(p) && ` · 95% range ${range(p)}`}
+        {range(p) && ` · likely range ${range(p)}`}
       </span>
       {delta !== null && <span className="tile-note">vs compared run: {delta === 0 ? "no change" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)} points`}</span>}
     </div>
@@ -49,7 +49,7 @@ function MetricsTable({ title, rows, nameOf }: { title: string; rows: Record<str
               <th className="num">False approval</th>
               <th className="num">False rejection</th>
               <th className="num">Left to a person</th>
-              <th className="num">Human override</th>
+              <th className="num">Reviewer disagreed</th>
             </tr>
           </thead>
           <tbody>
@@ -103,8 +103,8 @@ export function EvaluationRunPage() {
   return (
     <div className="page dash">
       <div>
-        <Link to="/evaluation">← Evaluation</Link>
-        <h1 style={{ marginTop: 8 }}>{run.label ?? "Evaluation"}</h1>
+        <Link to="/evaluation">← AI accuracy</Link>
+        <h1 style={{ marginTop: 8 }}>{run.label ?? "AI test"}</h1>
         <p className="muted" style={{ margin: "4px 0 0" }}>
           {new Date(run.requestedAt).toLocaleString()} · {s.examples} examples · {Math.round(s.durationMs / 1000)} s · AI cost ${Number(run.costUsd ?? 0).toFixed(2)}
         </p>
@@ -132,8 +132,8 @@ export function EvaluationRunPage() {
         <div className="tiles">
           <RateTile label="False approval rate" p={s.overall.falseApprovalRate} note="that should be rejected" compare={c?.overall.falseApprovalRate} />
           <RateTile label="False rejection rate" p={s.overall.falseRejectionRate} note="that should be approved" compare={c?.overall.falseRejectionRate} />
-          <RateTile label="Precision (approvals right)" p={s.overall.precision} note="AI approvals" compare={c?.overall.precision} />
-          <RateTile label="Recall (approvals found)" p={s.overall.recall} note="true approvals" compare={c?.overall.recall} />
+          <RateTile label="AI approvals that were right" p={s.overall.precision} note="AI approvals" compare={c?.overall.precision} />
+          <RateTile label="Real approvals the AI found" p={s.overall.recall} note="true approvals" compare={c?.overall.recall} />
           <RateTile label="Left to a person" p={s.overall.deferralRate} note="samples" compare={c?.overall.deferralRate} />
           <RateTile label="Right when it decided" p={s.overall.accuracyWhenDecided} note="decisions" compare={c?.overall.accuracyWhenDecided} />
         </div>
@@ -164,7 +164,7 @@ export function EvaluationRunPage() {
         <MetricsTable title="By case type" rows={s.byTag} nameOf={(k) => TAG_LABEL[k] ?? k} />
         <MetricsTable title="By photo quality" rows={s.byImageQuality} nameOf={(k) => (k === "POOR" ? "Some photos unusable" : "All photos usable")} />
         <MetricsTable title="By AI confidence (calibration)" rows={s.byConfidence} nameOf={(k) => `${k[0]}${k.slice(1).toLowerCase()} confidence`} />
-        <p className="muted" style={{ fontSize: 12, margin: 0 }}>* fewer than {s.minSample} samples. Human override = the original reviewer decided differently from the AI.</p>
+        <p className="muted" style={{ fontSize: 12, margin: 0 }}>* fewer than {s.minSample} samples. Reviewer disagreed = the original reviewer decided differently from the AI.</p>
       </section>
 
       <section>

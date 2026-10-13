@@ -62,7 +62,7 @@ export function FeedbackPage() {
         <div>
           <h1>Feedback on the AI</h1>
           <p className="muted" style={{ margin: "4px 0 0" }}>
-            Every decision where a reviewer gave a reason. Use it to see where the AI goes wrong. It doesn’t change the AI on its own: it goes into the evaluation set once a team lead checks it.
+            Every decision where a reviewer gave a reason. Use it to see where the AI goes wrong. It doesn’t change the AI on its own: once a team lead checks a case, it can become a test example for the AI.
           </p>
         </div>
         <a className="btn" href={`/api/feedback/export.csv?${query}`} download>

@@ -72,6 +72,10 @@ describe("diagnose", () => {
   it("says the queue is clear when nothing waits", () => {
     expect(diagnose(base)).toEqual([{ level: "ok", text: "Queue is clear: 12 locations decided and nothing waiting." }]);
   });
+  it("does not claim locations stopped when AI errors are still being retried", () => {
+    const d = diagnose({ ...base, recentErrorsByCategory: { MODEL_ERROR: 2 } });
+    expect(d[0]).toEqual({ level: "info", text: "The AI provider had 2 errors in the last hour. The affected locations are being retried automatically." });
+  });
   it("explains why the queue is not clearing, most important first", () => {
     const d = diagnose({
       ...base,

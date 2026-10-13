@@ -29,6 +29,16 @@ interface ReviewRow {
   feedback: { serviceCode: string | null; imageRef: string | null; aiStatus: string | null; humanDecision: string; reasonCode: string }[];
 }
 
+const RUN_STATUS: Record<string, string> = { SUCCEEDED: "Finished", RUNNING: "In progress", FAILED: "Didn't finish", SUPERSEDED: "Replaced by a newer check" };
+const RUN_REASON: Record<string, string> = {
+  INITIAL: "First check",
+  NEW_IMAGES: "New photos added",
+  IMPROVED_MODEL: "Improved AI",
+  CONFIG_CHANGE: "Rules changed",
+  REVIEWER_DISPUTE: "Reviewer asked for a re-check",
+  TECHNICAL_ERROR: "Re-run after a technical error",
+};
+
 const REPROCESS = [
   ["NEW_IMAGES", "New photos were added"],
   ["IMPROVED_MODEL", "Improved AI model or prompt"],
@@ -105,18 +115,18 @@ export function LocationDetailPage() {
         {isLead(user) && reviews.some((r) => r.decision === "APPROVE" || r.decision === "REJECT") && (
           <button
             className="btn"
-            title="Copy this location's photos and decision into the evaluation set, to check the correct answer"
+            title="Copy this location's photos and decision into the AI test examples, to check the correct answer"
             onClick={async () => {
               setMsg(null);
               try {
                 const r = await api<{ id: string }>(`/api/golden/from-location/${loc.id}`, { method: "POST", body: {} });
                 navigate(`/evaluation/examples/${r.id}`);
               } catch (err) {
-                setMsg(err instanceof ApiError ? err.message : "Couldn't add it to the evaluation set.");
+                setMsg(err instanceof ApiError ? err.message : "Couldn't add it to the AI test examples.");
               }
             }}
           >
-            Add to evaluation set
+            Use as AI test example
           </button>
         )}
         {isLead(user) && loc.status === "NETSUITE_ERROR" && (
@@ -163,14 +173,14 @@ export function LocationDetailPage() {
         <section style={{ display: "grid", gap: 8 }}>
           <h2>AI assessment</h2>
           <p className="muted" style={{ margin: 0 }}>
-            Shadow mode: the AI analysed this location, but its result is withheld {isLead(user) ? "until a decision is made" : "from reviewers"} so it can be compared with the human decision.
+            AI trial: the AI checked this location, but its answer is hidden {isLead(user) ? "until a decision is made" : "from reviewers"} so it can be compared with the human decision.
           </p>
         </section>
       ) : (
       <section style={{ display: "grid", gap: 8 }}>
         <h2>
           AI assessment {ev.runNumber ? `(run ${ev.runNumber})` : ""}
-          {d.shadow && <span className="pill" style={{ marginLeft: 8 }}>shadow mode</span>}
+          {d.shadow && <span className="pill" style={{ marginLeft: 8 }}>AI trial</span>}
         </h2>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <RiskTag level={ev.risk?.level ?? null} />
@@ -262,21 +272,29 @@ export function LocationDetailPage() {
       )}
 
       <section style={{ display: "grid", gap: 8 }}>
-        <h2>Processing runs</h2>
+        <h2>AI checks</h2>
         <table className="list">
           <tbody>
             {d.runs.map((r) => (
               <tr key={r.id}>
-                <td>Run {r.runNumber}</td>
-                <td>{humanize(r.status)}</td>
-                <td>{humanize(r.reason)}</td>
-                <td className="mono">{r.visionModel ?? "—"}</td>
-                <td className="mono">{r.promptVersion ?? "—"}</td>
+                <td>Check {r.runNumber}</td>
+                <td>{RUN_STATUS[r.status] ?? humanize(r.status)}</td>
+                <td>{RUN_REASON[r.reason] ?? humanize(r.reason)}</td>
                 <td>{new Date(r.startedAt).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        <details className="muted" style={{ fontSize: 13 }}>
+          <summary style={{ cursor: "pointer" }}>Technical details</summary>
+          <ul style={{ margin: "6px 0 0" }}>
+            {d.runs.map((r) => (
+              <li key={r.id}>
+                Check {r.runNumber}: AI model <span className="mono">{r.visionModel ?? "—"}</span>, instructions <span className="mono">{r.promptVersion ?? "—"}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       </section>
 
       <section style={{ display: "grid", gap: 8 }}>

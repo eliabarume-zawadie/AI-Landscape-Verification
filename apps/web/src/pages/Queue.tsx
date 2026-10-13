@@ -7,7 +7,7 @@ import { age, LOCATION_STATUS_LABEL, RECOMMENDATION_LABEL } from "../labels";
 type LaneKey = "HUMAN_REVIEW" | "FAST" | "EXCEPTION" | "ALL";
 const LANES: { key: LaneKey; label: string; hint: string }[] = [
   { key: "HUMAN_REVIEW", label: "Needs review", hint: "AI flagged something, or a person must decide" },
-  { key: "FAST", label: "Fast lane", hint: "Strong evidence, low risk — confirm quickly" },
+  { key: "FAST", label: "Quick approvals", hint: "Strong evidence, low risk — confirm quickly" },
   { key: "EXCEPTION", label: "Problems", hint: "Photo, AI or data problems to resolve" },
   { key: "ALL", label: "Search all", hint: "Every location, any status" },
 ];
@@ -87,7 +87,7 @@ export function QueuePage() {
       </div>
 
       <div className="filters">
-        <input aria-label="Search" placeholder="Search location ID or name" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input aria-label="Search" placeholder="Search location ID or name" style={{ minWidth: 300 }} value={q} onChange={(e) => setQ(e.target.value)} />
         <select aria-label="Risk" value={risk} onChange={(e) => setRisk(e.target.value)}>
           <option value="">Any risk</option>
           <option value="HIGH">High risk</option>
@@ -118,17 +118,24 @@ export function QueuePage() {
               <th>AI suggests</th>
               <th>Status</th>
               <th>Waiting</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {(rows ?? []).map((r) => (
               <tr key={r.id} className="row" tabIndex={0} onClick={() => open(r)} onKeyDown={(e) => e.key === "Enter" && open(r)}>
                 <td>
-                  <div>{r.name ?? r.externalId}</div>
+                  <div style={{ fontWeight: 650 }}>{r.name ?? r.externalId}</div>
                   <div className="mono muted">{r.externalId}</div>
                 </td>
-                <td>{r.client}</td>
-                <td>{r.services.map((s) => s.replaceAll("_", " ")).join(", ")}</td>
+                <td>{r.clientName ?? r.client}</td>
+                <td>
+                  {r.services.map((s) => (
+                    <span key={s} className="chip">
+                      {s.replaceAll("_", " ")}
+                    </span>
+                  ))}
+                </td>
                 <td>{r.imageCount}</td>
                 <td>
                   <RiskTag level={r.riskLevel} />
@@ -136,6 +143,11 @@ export function QueuePage() {
                 <td>{r.aiRecommendation ? RECOMMENDATION_LABEL[r.aiRecommendation] : <span className="muted">—</span>}</td>
                 <td>{LOCATION_STATUS_LABEL[r.status] ?? r.status}</td>
                 <td>{age(r.receivedAt)}</td>
+                <td style={{ textAlign: "right" }}>
+                  <span className="btn quiet" style={{ minHeight: 34, padding: "4px 14px" }} aria-hidden>
+                    {r.status === "HUMAN_REVIEW" || r.status === "ESCALATED" ? "Review →" : "Open →"}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>

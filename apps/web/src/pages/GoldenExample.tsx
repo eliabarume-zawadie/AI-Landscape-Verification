@@ -54,7 +54,7 @@ export function GoldenExamplePage() {
   return (
     <div className="page dash" style={{ maxWidth: 1100 }}>
       <div>
-        <Link to="/evaluation">← Evaluation</Link>
+        <Link to="/evaluation">← AI accuracy</Link>
         <h1 style={{ marginTop: 8 }}>{ex.title}</h1>
         <p className="muted" style={{ margin: "4px 0 0" }}>
           {ex.clientName} · {SOURCE_LABEL[ex.source] ?? ex.source} · added by {ex.createdByName ?? "import"} {new Date(ex.createdAt).toLocaleDateString()}

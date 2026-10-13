@@ -87,6 +87,7 @@ export async function locationRoutes(app: FastifyInstance, ctx: AppContext) {
         externalId: locations.externalId,
         name: locations.name,
         client: clients.code,
+        clientName: clients.displayName,
         status: locations.status,
         lane: locations.lane,
         riskLevel: locations.riskLevel,

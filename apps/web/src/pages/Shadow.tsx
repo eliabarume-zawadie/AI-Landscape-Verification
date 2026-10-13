@@ -81,9 +81,9 @@ export function ShadowPage() {
     <div className="page dash">
       <div className="queue-head">
         <div>
-          <h1>Shadow results</h1>
+          <h1>AI trial results</h1>
           <p className="muted" style={{ margin: "4px 0 0", maxWidth: 860 }}>
-            In shadow mode the AI analyses live locations but reviewers don’t see its result, and it has no effect on decisions. This page compares what the AI would have suggested with what people decided. Reviewers aren’t always right either; disagreements are cases to look at, not proven AI errors.
+            During the AI trial, the AI checks live locations but reviewers don’t see its answer, and it has no effect on decisions. This page compares what the AI would have suggested with what people decided. Reviewers aren’t always right either; disagreements are cases to look at, not proven AI errors.
           </p>
         </div>
       </div>
@@ -93,8 +93,8 @@ export function ShadowPage() {
             {r.enabled ? "✓" : "i"}
           </span>
           {r.enabled
-            ? "Shadow mode is on: new locations are analysed with the AI result hidden from reviewers."
-            : "Shadow mode is off: reviewers see AI suggestions. Set SHADOW_MODE=true and restart to run the AI in the background only. Earlier shadow decisions are still shown below."}
+            ? "The AI trial is running: new locations are checked by the AI in the background, hidden from reviewers."
+            : "The trial is not running for everyone. An administrator can start it per client in AI settings. Earlier trial decisions are shown below."}
         </div>
       )}
       <div className="filters">
@@ -160,7 +160,7 @@ export function ShadowPage() {
               <input type="checkbox" checked={onlyDisagreements} onChange={(e) => setOnlyDisagreements(e.target.checked)} /> Only disagreements
             </label>
             {items.length === 0 ? (
-              <p className="muted">{r.items.length === 0 ? "No shadow-mode decisions in this period." : "No disagreements in this period."}</p>
+              <p className="muted">{r.items.length === 0 ? "No trial decisions in this period." : "No disagreements in this period."}</p>
             ) : (
               <div className="table-wrap" style={{ marginTop: 8 }}>
                 <table className="list">

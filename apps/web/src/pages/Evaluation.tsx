@@ -54,11 +54,11 @@ export function EvaluationPage() {
         body: { ...(label.trim() ? { label: label.trim() } : {}), includeDemo, ...(model.trim() ? { visionModel: model.trim() } : {}), acknowledgeCost: ack },
       });
       setLabel("");
-      setMsg("Evaluation started. It runs in the background; results appear here.");
+      setMsg("Test started. It runs in the background; results appear below.");
       setTick((x) => x + 1);
       void r;
     } catch (err) {
-      setMsg(err instanceof ApiError ? err.message : "Couldn't start the evaluation.");
+      setMsg(err instanceof ApiError ? err.message : "Couldn't start the test.");
     }
   };
 
@@ -78,16 +78,16 @@ export function EvaluationPage() {
     <div className="page dash">
       <div className="queue-head">
         <div>
-          <h1>Evaluation</h1>
+          <h1>AI accuracy</h1>
           <p className="muted" style={{ margin: "4px 0 0", maxWidth: 820 }}>
-            Measure the AI against examples whose correct answer a person has checked. Runs use the current rules and AI model in a separate sandbox; the live queue is never touched. Nothing here changes how locations are assessed.
+            Test the AI on past locations whose correct answer a person has checked. Tests run on a separate copy, so live work is never touched, and nothing here changes how locations are assessed.
           </p>
         </div>
       </div>
       {msg && <p className="muted">{msg}</p>}
 
       <section>
-        <h2>Run an evaluation</h2>
+        <h2>Test the AI</h2>
         <form className="note-form" onSubmit={start}>
           <div className="note-form-row">
             <div className="field">
@@ -111,7 +111,7 @@ export function EvaluationPage() {
           )}
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button className="btn primary" type="submit" disabled={inScope.length === 0 || (external && !ack)}>
-              Evaluate {inScope.length} example{inScope.length === 1 ? "" : "s"}
+              Test on {inScope.length} example{inScope.length === 1 ? "" : "s"}
             </button>
             <span className="muted" style={{ fontSize: 13 }}>
               AI: {vision ? `${vision.provider} · ${model || vision.model}` : "…"}
@@ -124,7 +124,7 @@ export function EvaluationPage() {
             <table className="list">
               <thead>
                 <tr>
-                  <th>Run</th>
+                  <th>Test</th>
                   <th>Status</th>
                   <th>AI model</th>
                   <th className="num">Examples</th>
@@ -157,8 +157,8 @@ export function EvaluationPage() {
       <section>
         <h2>Examples</h2>
         <p className="muted" style={{ marginTop: 0, maxWidth: 820 }}>
-          {realApproved} approved real example{realApproved === 1 ? "" : "s"}. Add examples from decided locations (“Add to evaluation set” on a location) or import past cases (
-          <span className="mono">npm run golden:import</span>). Each one needs a second team lead to check the correct answer before it counts.
+          {realApproved} approved real example{realApproved === 1 ? "" : "s"}. Add examples from decided locations (“Use as AI test example” on a location) or import past cases (
+          ask your administrator). Each one needs a second team lead to check the correct answer before it counts.
         </p>
         <div className="coverage" aria-label="Coverage of case types (approved real examples)">
           {coverage.map((c) => (

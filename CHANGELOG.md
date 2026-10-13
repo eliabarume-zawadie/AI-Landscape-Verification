@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.16.0] — Terra design and plain language — 2026-10-13
+
+### Changed
+- **New look ("Terra", from the Google Stitch designs in `design/`):**
+  - **Colour and type:** forest-green actions on a warm cream background, with Inter headings and Nunito Sans text.
+  - **Shape:** soft rounded cards with very soft shadows, and status shown as soft pills.
+  - **Dark mode:** a matching dark theme. Chart colours re-validated for both themes.
+- **Plain language for non-technical staff:**
+  - **Menu:** Quick approvals (was Fast lane), Team notes, Overview (Dashboard), AI accuracy (Evaluation), AI trial (Shadow results), AI settings (Rollout).
+  - **AI modes:** People only, AI trial (hidden), AI helps, AI helps + quick approvals.
+  - **Wording:** server variable names and technical terms removed from screens.
+  - **AI checks:** shown in plain words, with model and prompt versions behind "Technical details".
+- **Layout ideas from the designs:**
+  - **Queue:** a Review button on every row, services as chips, client names instead of codes.
+  - **Review screen:** larger photo cards, a red-tinted card for contradicting photos, service and AI cards, and a dark decision bar.
+  - **Quick approvals:** "Select all" and a floating "N selected · Approve" bar.
+  - **Overview:** problems come with one-click actions ("View problems", "Go to queue").
+  - **AI settings:** the four modes as choice cards.
+- **Top bar:** initials avatar with name and role.
+
+### Fixed
+- **Misleading Overview message:** it said "The AI provider is failing: 0 locations stopped" when AI errors were still being retried. It now says how many errors happened in the last hour and that the locations are being retried automatically.
+
+### Not taken from the designs
+- Details the designs invented that ALVIP doesn't have, or that would mislead:
+  - confidence percentages
+  - model version numbers and "telemetry", "NDVI", "ledger hash"
+  - notification bells and settings icons
+  - a sidebar (the top bar stays, as decided)
+
 ## [0.15.1] — Final end-to-end review — 2026-10-07
 
 ### Review

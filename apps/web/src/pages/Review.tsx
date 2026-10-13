@@ -201,7 +201,7 @@ export function ReviewPage() {
           </section>
           )}
           {notes.length > 0 && <TeamNotes notes={notes} />}
-          {ev.thresholdsProvisional && <p className="muted" style={{ fontSize: 12, margin: 0 }}>Thresholds are provisional until validated on real data.</p>}
+          {ev.thresholdsProvisional && <p className="muted" style={{ fontSize: 12, margin: 0 }}>The AI’s settings are still being tuned on real data.</p>}
         </aside>
 
         <section className="evidence" aria-label="Evidence">

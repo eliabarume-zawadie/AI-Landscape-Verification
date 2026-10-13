@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, ApiError, type NoteScopes } from "../api";
 import { RECOMMENDATION_LABEL } from "../labels";
 
@@ -11,7 +12,7 @@ interface Rate {
 interface Dashboard {
   period: { from: string; to: string; timezone: string; isToday: boolean };
   minSample: number;
-  diagnosis: { level: "ok" | "info" | "warn"; text: string }[];
+  diagnosis: { level: "ok" | "info" | "warn"; text: string; action?: "PROBLEMS" | "REVIEW" }[];
   queue: {
     received: number;
     aiProcessed: number;
@@ -217,7 +218,7 @@ export function DashboardPage() {
     <div className="page dash">
       <div className="queue-head">
         <div>
-          <h1>Dashboard</h1>
+          <h1>Overview</h1>
           <p className="muted" style={{ margin: "4px 0 0" }}>
             Is the queue clearing, and if not, why. Rates appear once there are at least {d?.minSample ?? 30} cases.
           </p>
@@ -292,7 +293,17 @@ export function DashboardPage() {
                     {LEVEL[x.level].icon}
                   </span>
                   <span className="sr-only">{LEVEL[x.level].word}: </span>
-                  {x.text}
+                  <span style={{ flex: 1 }}>{x.text}</span>
+                  {x.action === "PROBLEMS" && (
+                    <Link className="btn" to="/?lane=EXCEPTION" style={{ minHeight: 34, padding: "4px 14px" }}>
+                      View problems →
+                    </Link>
+                  )}
+                  {x.action === "REVIEW" && (
+                    <Link className="btn primary" to="/?lane=HUMAN_REVIEW" style={{ minHeight: 34, padding: "4px 14px" }}>
+                      Go to queue →
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -324,7 +335,7 @@ export function DashboardPage() {
                 note={
                   d.efficiency.baselineReviewSeconds !== null
                     ? `${secs(d.efficiency.timeSavedSecondsPerLocation)} saved per location (it took ${secs(d.efficiency.baselineReviewSeconds)} before ALVIP)`
-                    : "Needs the review time before ALVIP (METRICS_BASELINE_REVIEW_SECONDS)"
+                    : "Needs the usual review time before ALVIP — ask your administrator to set it"
                 }
               />
             </div>
@@ -388,7 +399,7 @@ export function DashboardPage() {
           <section>
             <h2>AI cost</h2>
             <div className="tiles">
-              <Tile label="Total" value={usd(d.cost.totalUsd)} note={`${d.cost.runs} processing runs`} />
+              <Tile label="Total" value={usd(d.cost.totalUsd)} note={`${d.cost.runs} AI checks`} />
               <Tile label="Per location" value={usd(d.cost.perLocationUsd)} />
               <Tile label="Per photo" value={usd(d.cost.perImageUsd)} />
               <Tile label="Per decided location" value={usd(d.cost.perDecidedLocationUsd)} note="cost in period ÷ decisions in period" />
@@ -402,7 +413,7 @@ export function DashboardPage() {
                   <tr>
                     <th>Client</th>
                     <th className="num">Locations</th>
-                    <th className="num">Runs</th>
+                    <th className="num">AI checks</th>
                     <th className="num">AI cost</th>
                     <th className="num">Per location</th>
                   </tr>

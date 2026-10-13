@@ -86,7 +86,7 @@ export function KnowledgePage() {
     <div className="page" style={{ maxWidth: 960 }}>
       <div className="queue-head">
         <div>
-          <h1>Team knowledge</h1>
+          <h1>Team notes</h1>
           <p className="muted" style={{ margin: "4px 0 0" }}>
             Past review notes, client instructions and edge cases. Guidance only: client rules are set in the client profile, and notes never change them.
           </p>

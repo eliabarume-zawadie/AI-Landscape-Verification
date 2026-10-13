@@ -39,6 +39,7 @@ export interface LocationRow {
   externalId: string;
   name: string | null;
   client: string;
+  clientName?: string;
   status: string;
   lane: string | null;
   riskLevel: "LOW" | "MEDIUM" | "HIGH" | null;

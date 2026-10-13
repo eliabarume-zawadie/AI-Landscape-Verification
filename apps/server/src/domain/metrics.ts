@@ -118,26 +118,37 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 const ago = (minutes: number) => (minutes < 90 ? `${Math.round(minutes)} min` : minutes < 48 * 60 ? `${Math.round(minutes / 60)} h` : `${Math.round(minutes / 1440)} days`);
 
 /** "Why is today's queue not clearing?" (PRD §79), as plain sentences, most important first. */
-export function diagnose(s: QueueSnapshot): { level: "ok" | "info" | "warn"; text: string }[] {
-  const out: { level: "ok" | "info" | "warn"; text: string }[] = [];
+/** Where the dashboard can send the team lead to act on a diagnosis line. */
+export type DiagnosisAction = "PROBLEMS" | "REVIEW";
+export interface Diagnosis {
+  level: "ok" | "info" | "warn";
+  text: string;
+  action?: DiagnosisAction;
+}
+
+export function diagnose(s: QueueSnapshot): Diagnosis[] {
+  const out: Diagnosis[] = [];
   if (s.pendingJobs > 0 && s.minutesSinceLastJobFinished !== null && s.minutesSinceLastJobFinished > 10) {
     out.push({ level: "warn", text: `Processing looks stalled: ${plural(s.pendingJobs, "job")} waiting and none finished in the last ${ago(s.minutesSinceLastJobFinished)}. Check that the worker is running.` });
   }
   const auth = s.recentErrorsByCategory.AUTHENTICATION ?? 0;
   if (auth > 0) out.push({ level: "warn", text: `${plural(auth, "login failure")} with an external service in the last hour. An admin must check the integration credentials.` });
-  const ai = (s.recentErrorsByCategory.MODEL_ERROR ?? 0) + (s.errorsByStatus.AI_ERROR ?? 0);
-  if (ai > 0) {
-    const n = s.errorsByStatus.AI_ERROR ?? 0;
-    out.push({ level: "warn", text: `The AI provider is failing: ${plural(n, "location")} stopped with an AI problem. A team lead can send ${n === 1 ? "it" : "them"} to manual review.` });
+  const stoppedOnAi = s.errorsByStatus.AI_ERROR ?? 0;
+  const aiErrorsLastHour = s.recentErrorsByCategory.MODEL_ERROR ?? 0;
+  if (stoppedOnAi > 0) {
+    out.push({ level: "warn", text: `The AI provider is failing: ${plural(stoppedOnAi, "location")} stopped with an AI problem. A team lead can send ${stoppedOnAi === 1 ? "it" : "them"} to manual review.`, action: "PROBLEMS" });
+  } else if (aiErrorsLastHour > 0) {
+    out.push({ level: "info", text: `The AI provider had ${plural(aiErrorsLastHour, "error")} in the last hour. The affected locations are being retried automatically.` });
   }
-  if (s.netsuiteStopped > 0) out.push({ level: "warn", text: `${plural(s.netsuiteStopped, "decision")} could not be sent to NetSuite. Open them from the Problems lane and retry once the cause is fixed.` });
+  if (s.netsuiteStopped > 0) out.push({ level: "warn", text: `${plural(s.netsuiteStopped, "decision")} could not be sent to NetSuite. Open them from the Problems lane and retry once the cause is fixed.`, action: "PROBLEMS" });
   const photo = s.errorsByStatus.IMAGE_ERROR ?? 0;
   const data = s.errorsByStatus.INTEGRATION_ERROR ?? 0;
-  if (photo + data > 0) out.push({ level: "info", text: `${plural(photo + data, "location")} need attention in the Problems lane (${photo} photo, ${data} data problems).` });
+  if (photo + data > 0) out.push({ level: "info", text: `${plural(photo + data, "location")} need attention in the Problems lane (${photo} photo, ${data} data problems).`, action: "PROBLEMS" });
   if (s.awaitingReview > 0) {
     out.push({
       level: s.oldestAwaitingMinutes !== null && s.oldestAwaitingMinutes > 8 * 60 ? "warn" : "info",
       text: `${plural(s.awaitingReview, "location")} waiting for a reviewer${s.oldestAwaitingMinutes !== null ? `; the oldest has waited ${ago(s.oldestAwaitingMinutes)}` : ""}.`,
+      action: "REVIEW",
     });
   }
   if (s.inProgress > 0) out.push({ level: "info", text: `${plural(s.inProgress, "location")} still being analysed${s.oldestUnprocessedMinutes !== null ? ` (oldest received ${ago(s.oldestUnprocessedMinutes)} ago)` : ""}.` });

@@ -1,7 +1,5 @@
-import "@fontsource-variable/bricolage-grotesque";
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/500.css";
-import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/nunito-sans";
 import "@fontsource/ibm-plex-mono/400.css";
 import "./styles/app.css";
 import { StrictMode, useState, type FormEvent } from "react";
@@ -65,6 +63,15 @@ function Login() {
   );
 }
 
+const ROLE_NAME: Record<string, string> = { REVIEWER: "Reviewer", TEAM_LEAD: "Team lead", ADMIN: "Administrator" };
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+
 function Shell() {
   const { user, logout } = useAuth();
   return (
@@ -77,17 +84,21 @@ function Shell() {
           <NavLink to="/" end>
             Queue
           </NavLink>
-          <NavLink to="/fast-lane">Fast lane</NavLink>
-          <NavLink to="/knowledge">Team knowledge</NavLink>
-          {isLead(user) && <NavLink to="/dashboard">Dashboard</NavLink>}
+          <NavLink to="/fast-lane">Quick approvals</NavLink>
+          <NavLink to="/knowledge">Team notes</NavLink>
+          {isLead(user) && <NavLink to="/dashboard">Overview</NavLink>}
           {isLead(user) && <NavLink to="/feedback">Feedback</NavLink>}
-          {isLead(user) && <NavLink to="/evaluation">Evaluation</NavLink>}
-          {isLead(user) && <NavLink to="/shadow">Shadow results</NavLink>}
-          {isLead(user) && <NavLink to="/rollout">Rollout</NavLink>}
+          {isLead(user) && <NavLink to="/evaluation">AI accuracy</NavLink>}
+          {isLead(user) && <NavLink to="/shadow">AI trial</NavLink>}
+          {isLead(user) && <NavLink to="/rollout">AI settings</NavLink>}
         </nav>
         <div className="who">
-          <span className="muted">
-            {user!.displayName} · {user!.role.replace("_", " ").toLowerCase()}
+          <span className="avatar" aria-hidden>
+            {initials(user!.displayName)}
+          </span>
+          <span className="who-name">
+            {user!.displayName}
+            <small>{ROLE_NAME[user!.role] ?? user!.role}</small>
           </span>
           <button className="btn quiet" onClick={logout}>
             Sign out

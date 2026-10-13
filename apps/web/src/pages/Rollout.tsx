@@ -49,12 +49,12 @@ interface QcSample {
   checkedByName: string | null;
 }
 
-export const MODE_LABEL: Record<Mode, string> = { MANUAL: "Manual (no AI)", SHADOW: "Shadow", ASSIST: "AI assists", FAST_TRACK: "Fast track" };
+export const MODE_LABEL: Record<Mode, string> = { MANUAL: "People only", SHADOW: "AI trial (hidden)", ASSIST: "AI helps", FAST_TRACK: "AI helps + quick approvals" };
 const MODE_HELP: Record<Mode, string> = {
-  MANUAL: "No AI analysis. Reviewers verify the photos themselves.",
-  SHADOW: "AI analyses in the background; reviewers don't see it. Compare on Shadow results.",
-  ASSIST: "Reviewers see the AI's evidence, strongest photos and suggestion. People decide.",
-  FAST_TRACK: "As assist, plus low-risk 'approve' suggestions for the chosen services go to the Fast Lane, where a person still confirms.",
+  MANUAL: "The AI is off. Reviewers check the photos themselves.",
+  SHADOW: "The AI checks each location quietly; reviewers don't see its answer. Compare on AI trial results.",
+  ASSIST: "Reviewers see the AI's strongest photos and its suggestion. People decide.",
+  FAST_TRACK: "Like AI helps, plus clear, low-risk approvals for the chosen services are grouped for a quick confirmation. A person still confirms.",
 };
 const RANK: Record<Mode, number> = { MANUAL: 0, SHADOW: 1, ASSIST: 2, FAST_TRACK: 3 };
 
@@ -79,7 +79,7 @@ function ChangeForm({ target, ceiling, services, runs, onDone }: { target: { id:
         method: "POST",
         body: { clientId: target.id, mode, ...(mode === "FAST_TRACK" ? { fastTrackServices: svc } : {}), reason, ...(runId ? { evaluationRunId: runId } : {}), ...(ack ? { acknowledgeNoValidation: true } : {}) },
       });
-      onDone(`${target.name}: ${MODE_LABEL[mode]}.${r.movedOutOfFastLane ? ` ${r.movedOutOfFastLane} location(s) moved out of the Fast Lane.` : ""}`);
+      onDone(`${target.name}: ${MODE_LABEL[mode]}.${r.movedOutOfFastLane ? ` ${r.movedOutOfFastLane} location(s) moved back to normal review.` : ""}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't save.");
     }
@@ -87,19 +87,29 @@ function ChangeForm({ target, ceiling, services, runs, onDone }: { target: { id:
   return (
     <form className="note-form" onSubmit={submit} style={{ marginTop: 8 }}>
       <strong>Change {target.name}</strong>
-      <div className="seg" role="group" aria-label="Mode">
-        {(Object.keys(MODE_LABEL) as Mode[]).map((m) => (
-          <button type="button" key={m} aria-pressed={mode === m} disabled={RANK[m] > RANK[ceiling]} title={RANK[m] > RANK[ceiling] ? "Above the server's AUTOMATION_LEVEL" : MODE_HELP[m]} onClick={() => setMode(m)}>
-            {MODE_LABEL[m]}
+      <div className="mode-cards" role="radiogroup" aria-label="How much the AI is used">
+        {(Object.keys(MODE_LABEL) as Mode[]).map((m, i) => (
+          <button
+            type="button"
+            role="radio"
+            key={m}
+            aria-checked={mode === m}
+            disabled={RANK[m] > RANK[ceiling]}
+            title={RANK[m] > RANK[ceiling] ? "Not allowed by the server settings" : undefined}
+            className="mode-card"
+            onClick={() => setMode(m)}
+          >
+            <strong>
+              {i + 1}. {MODE_LABEL[m]}
+            </strong>
+            <span>{MODE_HELP[m]}</span>
           </button>
         ))}
       </div>
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-        {MODE_HELP[mode]}
-      </p>
       {mode === "FAST_TRACK" && (
         <>
-          <div className="coverage" role="group" aria-label="Services allowed in the Fast Lane">
+          <strong style={{ fontSize: 14 }}>Which services can use quick approvals?</strong>
+          <div className="coverage" role="group" aria-label="Services allowed for quick approval">
             {services.map((s) => (
               <label key={s.code} className="check pill-check">
                 <input type="checkbox" checked={svc.includes(s.code)} onChange={(e) => setSvc(e.target.checked ? [...svc, s.code] : svc.filter((x) => x !== s.code))} /> {s.name}
@@ -107,7 +117,7 @@ function ChangeForm({ target, ceiling, services, runs, onDone }: { target: { id:
             ))}
           </div>
           <div className="field">
-            <label htmlFor="ro-run">Evidence: evaluation run (optional)</label>
+            <label htmlFor="ro-run">Supporting AI test (optional)</label>
             <select id="ro-run" value={runId} onChange={(e) => setRunId(e.target.value)}>
               <option value="">None</option>
               {runs.map((r) => (
@@ -118,7 +128,7 @@ function ChangeForm({ target, ceiling, services, runs, onDone }: { target: { id:
             </select>
           </div>
           <label className="check">
-            <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> If the evaluation doesn’t validate it: the business approves fast track anyway (recorded as not validated)
+            <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> If no AI test supports it: the business approves quick approvals anyway (recorded as not yet tested)
           </label>
         </>
       )}
@@ -157,7 +167,7 @@ function QcRow({ s, me, onDone }: { s: QcSample; me: string; onDone(): void }) {
           {s.externalId}
         </Link>
         <div className="muted" style={{ fontSize: 12 }}>
-          {s.clientName} · {s.reason === "FAST_LANE" ? "Fast Lane confirmation" : "random approval"} · {new Date(s.sampledAt).toLocaleDateString()}
+          {s.clientName} · {s.reason === "FAST_LANE" ? "quick approval" : "random approval"} · {new Date(s.sampledAt).toLocaleDateString()}
         </div>
       </td>
       <td>
@@ -240,7 +250,7 @@ export function RolloutPage() {
     <div className="page dash">
       <div className="queue-head">
         <div>
-          <h1>Rollout</h1>
+          <h1>AI settings</h1>
           <p className="muted" style={{ margin: "4px 0 0", maxWidth: 860 }}>
             How much each client relies on the AI, and the quality checks that keep it honest. People always make the final decision: fully automatic approval is not available.
           </p>
@@ -250,7 +260,7 @@ export function RolloutPage() {
         <span className="dx-icon" aria-hidden>
           i
         </span>
-        Server limit: {MODE_LABEL[d.ceiling]} (AUTOMATION_LEVEL).{d.shadowSwitch ? " SHADOW_MODE is on, so every client with AI runs in shadow regardless of the settings below." : ""}
+        Highest level the server allows: {MODE_LABEL[d.ceiling]}.{d.shadowSwitch ? " The server has the AI trial switched on for everyone, so every client with AI runs as a hidden trial, whatever the settings below say." : ""}
       </div>
       {msg && <p className="muted">{msg}</p>}
 
@@ -262,7 +272,7 @@ export function RolloutPage() {
               <tr>
                 <th>Client</th>
                 <th>In effect</th>
-                <th>Fast Lane services</th>
+                <th>Quick-approval services</th>
                 <th>Last change</th>
                 <th>Quality checks</th>
                 {admin && <th />}
@@ -279,7 +289,7 @@ export function RolloutPage() {
                     <td>
                       <strong>{MODE_LABEL[r.mode]}</strong>
                       {r.mode !== r.configuredMode && <div className="muted" style={{ fontSize: 12 }}>set to {MODE_LABEL[r.configuredMode]}, limited by the server</div>}
-                      {r.configuredMode === "FAST_TRACK" && !r.validated && <span className="pill gap" style={{ marginLeft: 6 }}>not validated</span>}
+                      {r.configuredMode === "FAST_TRACK" && !r.validated && <span className="pill gap" style={{ marginLeft: 6 }}>not yet tested</span>}
                     </td>
                     <td style={{ fontSize: 13 }}>{r.mode === "FAST_TRACK" ? (r.fastTrackServices.includes("*") ? "All services" : r.fastTrackServices.map((s) => s.replaceAll("_", " ")).join(", ")) : "—"}</td>
                     <td style={{ fontSize: 13 }}>
@@ -321,11 +331,11 @@ export function RolloutPage() {
       <section>
         <h2>Quality checks</h2>
         <p className="muted" style={{ marginTop: 0, maxWidth: 860 }}>
-          A share of approvals ({Math.round(d.qcRates.fastLane * 100)}% of Fast Lane confirmations, {Math.round(d.qcRates.approvals * 100)}% of other approvals) is checked again by a second team lead. A check never changes the decision; a disagreement means the approval should be corrected in NetSuite and is worth adding to the evaluation set.
+          A share of approvals ({Math.round(d.qcRates.fastLane * 100)}% of quick approvals, {Math.round(d.qcRates.approvals * 100)}% of other approvals) is checked again by a second team lead. A check never changes the decision; a disagreement means the approval should be corrected in NetSuite and is worth adding to the evaluation set.
         </p>
         <div className="tiles">
           <div className="tile">
-            <span className="tile-label">Fast Lane confirmations</span>
+            <span className="tile-label">Quick approvals</span>
             {d.qc.fastLane.checked && !d.qc.fastLane.smallSample ? <span className="tile-value">{`${Math.round((d.qc.fastLane.rate ?? 0) * 100)}%`}</span> : <span className="tile-value muted-value">{d.qc.fastLane.checked ? "Not enough checks yet" : "—"}</span>}
             <span className="tile-note">{qcText(d.qc.fastLane)}</span>
           </div>
