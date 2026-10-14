@@ -52,7 +52,7 @@ export function GoldenExamplePage() {
   const draft = ex.status === "DRAFT";
 
   return (
-    <div className="page dash" style={{ maxWidth: 1100 }}>
+    <div className="page dash">
       <div>
         <Link to="/evaluation">← AI accuracy</Link>
         <h1 style={{ marginTop: 8 }}>{ex.title}</h1>

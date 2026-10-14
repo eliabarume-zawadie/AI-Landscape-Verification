@@ -130,7 +130,7 @@ export function ShadowPage() {
             </div>
             {Object.keys(r.summary.byService).length > 0 && (
               <div className="table-wrap" style={{ marginTop: 12 }}>
-                <table className="list" style={{ maxWidth: 640 }}>
+                <table className="list">
                   <thead>
                     <tr>
                       <th>Service</th>

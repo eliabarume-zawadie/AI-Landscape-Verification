@@ -331,7 +331,7 @@ export function RolloutPage() {
       <section>
         <h2>Quality checks</h2>
         <p className="muted" style={{ marginTop: 0, maxWidth: 860 }}>
-          A share of approvals ({Math.round(d.qcRates.fastLane * 100)}% of quick approvals, {Math.round(d.qcRates.approvals * 100)}% of other approvals) is checked again by a second team lead. A check never changes the decision; a disagreement means the approval should be corrected in NetSuite and is worth adding to the evaluation set.
+          A share of approvals ({Math.round(d.qcRates.fastLane * 100)}% of quick approvals, {Math.round(d.qcRates.approvals * 100)}% of other approvals) is checked again by a second team lead. A check never changes the decision; a disagreement means the approval should be corrected in NetSuite and is worth using as an AI test example.
         </p>
         <div className="tiles">
           <div className="tile">

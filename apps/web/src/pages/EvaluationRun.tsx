@@ -185,7 +185,7 @@ export function EvaluationRunPage() {
 
       <section>
         <h2>Versions evaluated</h2>
-        <table className="list" style={{ maxWidth: 720 }}>
+        <table className="list">
           <tbody>
             {[
               ["AI provider / model", `${v.visionProvider ?? "—"} · ${v.visionModel ?? "—"}`],
